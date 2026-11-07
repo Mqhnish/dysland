@@ -5,18 +5,24 @@
 //  Shared notch motion values and the (optionally glass) notch background.
 //
 
+import Defaults
 import SwiftUI
 
 /// Every open/close animation goes through these, so nothing fights over timing.
+/// Speed and bounce come from Settings > Appearance.
 enum NotchMotion {
+    private static var speed: Double { min(max(Defaults[.notchAnimationSpeed], 0.5), 2.0) }
+
     /// Opening: quick, with a small settle at the end.
-    static let open = Animation.spring(duration: 0.42, bounce: 0.14)
+    static var open: Animation {
+        .spring(duration: 0.42 * speed, bounce: min(max(Defaults[.notchOpenBounce], 0), 0.4))
+    }
     /// Closing: a bit faster and with no bounce, so it tucks away cleanly.
-    static let close = Animation.spring(duration: 0.34, bounce: 0)
+    static var close: Animation { .spring(duration: 0.34 * speed, bounce: 0) }
     /// Content appears just after the shape starts growing.
-    static let contentIn = Animation.spring(duration: 0.36, bounce: 0).delay(0.06)
+    static var contentIn: Animation { .spring(duration: 0.36 * speed, bounce: 0).delay(0.06 * speed) }
     /// Content leaves fast so the shrinking shape never squeezes it.
-    static let contentOut = Animation.easeOut(duration: 0.12)
+    static var contentOut: Animation { .easeOut(duration: 0.12 * speed) }
 }
 
 /// Black when closed (so it blends into the hardware notch).
@@ -25,23 +31,17 @@ struct NotchBackground<S: Shape>: View {
     let shape: S
     let isOpen: Bool
     let useGlass: Bool
-    /// Height of the physical notch. Kept dark when open so the camera housing doesn't
-    /// look like a hole cut into the glass.
-    let topBandHeight: CGFloat
+
+    @Default(.glassClear) private var glassClear
+    @Default(.glassTint) private var glassTint
 
     private var showGlass: Bool { useGlass && isOpen }
+    private var tint: Double { min(max(glassTint, 0), 0.8) }
 
     var body: some View {
         ZStack(alignment: .top) {
             if useGlass {
                 glassLayer
-                LinearGradient(
-                    colors: [.black, .black, .black.opacity(0)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: max(topBandHeight, 24) + 18)
-                .allowsHitTesting(false)
             }
 
             // Solid black on top, faded out when the glass should show through.
@@ -56,12 +56,15 @@ struct NotchBackground<S: Shape>: View {
         if #available(macOS 26.0, *) {
             Rectangle()
                 .fill(.clear)
-                .glassEffect(.regular.tint(.black.opacity(0.38)), in: shape)
+                .glassEffect(
+                    (glassClear ? Glass.clear : Glass.regular).tint(.black.opacity(tint)),
+                    in: shape
+                )
         } else {
             // Older macOS: frosted material with a dark tint.
             Rectangle()
                 .fill(.ultraThinMaterial)
-                .overlay(Color.black.opacity(0.45))
+                .overlay(Color.black.opacity(tint + 0.15))
         }
     }
 }

@@ -106,8 +106,7 @@ struct ContentView: View {
                         NotchBackground(
                             shape: currentNotchShape,
                             isOpen: vm.notchState == .open,
-                            useGlass: glassBackground,
-                            topBandHeight: vm.effectiveClosedNotchHeight
+                            useGlass: glassBackground
                         )
                     }
                     .clipShape(currentNotchShape)

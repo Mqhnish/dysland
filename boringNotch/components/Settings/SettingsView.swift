@@ -1164,6 +1164,14 @@ struct Appearance: View {
     @Default(.useMusicVisualizer) var useMusicVisualizer
     @Default(.customVisualizers) var customVisualizers
     @Default(.selectedVisualizer) var selectedVisualizer
+    @Default(.glassBackground) var glassBackground
+    @Default(.glassClear) var glassClear
+    @Default(.glassTint) var glassTint
+    @Default(.notchAnimationSpeed) var notchAnimationSpeed
+    @Default(.notchOpenBounce) var notchOpenBounce
+    @Default(.showMirror) var showMirror
+    @Default(.mirrorPopOutEnabled) var mirrorPopOutEnabled
+    @Default(.mirrorPopOutSize) var mirrorPopOutSize
 
     let icons: [String] = ["logo2"]
     @State private var selectedIcon: String = "logo2"
@@ -1387,6 +1395,21 @@ struct Appearance: View {
                     Text("Square")
                         .tag(MirrorShapeEnum.rectangle)
                 }
+                Defaults.Toggle(key: .mirrorPopOutEnabled) {
+                    Text("Double-click mirror to pop it out")
+                }
+                .disabled(!showMirror)
+                LabeledContent("Pop-out window size") {
+                    HStack {
+                        Slider(value: $mirrorPopOutSize, in: 320...900, step: 20)
+                            .frame(width: 180)
+                        Text("\(Int(mirrorPopOutSize)) pt")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 52, alignment: .trailing)
+                    }
+                }
+                .disabled(!showMirror || !mirrorPopOutEnabled)
                 Defaults.Toggle(key: .showNotHumanFace) {
                     Text("Show cool face animation while inactive")
                 }
@@ -1394,6 +1417,68 @@ struct Appearance: View {
                 HStack {
                     Text("Additional features")
                 }
+            }
+
+            Section {
+                Toggle("Glass background when open", isOn: $glassBackground)
+                Picker("Glass style", selection: $glassClear) {
+                    Text("Clear").tag(true)
+                    Text("Frosted").tag(false)
+                }
+                .pickerStyle(.segmented)
+                .disabled(!glassBackground)
+                LabeledContent("Glass darkness") {
+                    HStack {
+                        Slider(value: $glassTint, in: 0...0.8)
+                            .frame(width: 180)
+                        Text("\(Int(glassTint * 100))%")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 52, alignment: .trailing)
+                    }
+                }
+                .disabled(!glassBackground)
+            } header: {
+                Text("Glass")
+            } footer: {
+                Text("Clear glass shows more of what's behind the notch. Raise the darkness if text gets hard to read.")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+            }
+
+            Section {
+                LabeledContent("Animation speed") {
+                    HStack {
+                        // Slider shows "faster" to the right, stored as a duration multiplier.
+                        Slider(
+                            value: Binding(
+                                get: { 2.5 - notchAnimationSpeed },
+                                set: { notchAnimationSpeed = 2.5 - $0 }
+                            ),
+                            in: 0.5...2.0
+                        )
+                        .frame(width: 180)
+                        Text(String(format: "%.1f×", 1 / notchAnimationSpeed))
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 52, alignment: .trailing)
+                    }
+                }
+                LabeledContent("Open bounce") {
+                    HStack {
+                        Slider(value: $notchOpenBounce, in: 0...0.4)
+                            .frame(width: 180)
+                        Text("\(Int(notchOpenBounce * 100 / 0.4))%")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 52, alignment: .trailing)
+                    }
+                }
+                Button("Reset motion to defaults") {
+                    Defaults.reset(.notchAnimationSpeed, .notchOpenBounce)
+                }
+            } header: {
+                Text("Motion")
             }
         }
         .accentColor(.effectiveAccent)
@@ -1563,9 +1648,6 @@ struct Advanced: View {
                 }
                 Defaults.Toggle(key: .cornerRadiusScaling) {
                     Text("Corner radius scaling")
-                }
-                Defaults.Toggle(key: .glassBackground) {
-                    Text("Glass background when open")
                 }
             } header: {
                 Text("Window Appearance")

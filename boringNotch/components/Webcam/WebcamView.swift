@@ -44,21 +44,25 @@ struct CameraPreviewView: View {
                     }
                 }
             }
-            // Double-click: open the mirror full screen. Declared before the
-            // single tap so SwiftUI can tell the two apart.
-            .onTapGesture(count: 2) {
-                guard webcamManager.authorizationStatus == .authorized else {
-                    handleCameraTap()
-                    return
+            // Double-click: pop the mirror out into a floating window. Declared
+            // before the single tap so SwiftUI can tell the two apart.
+            .conditionalModifier(Defaults[.mirrorPopOutEnabled]) { view in
+                view.onTapGesture(count: 2) {
+                    guard webcamManager.authorizationStatus == .authorized else {
+                        handleCameraTap()
+                        return
+                    }
+                    let screen = NSApp.windows.first(where: { $0.isVisible && $0.level == .mainMenu + 3 })?.screen
+                    FullscreenMirrorController.shared.toggle(on: screen)
+                    vm.close()
                 }
-                let screen = NSApp.windows.first(where: { $0.isVisible && $0.level == .mainMenu + 3 })?.screen
-                FullscreenMirrorController.shared.show(on: screen)
-                vm.close()
             }
             .onTapGesture {
                 handleCameraTap()
             }
-            .help("Click to start or stop the mirror. Double-click for full screen.")
+            .help(Defaults[.mirrorPopOutEnabled]
+                  ? "Click to start or stop the mirror. Double-click to pop it out."
+                  : "Click to start or stop the mirror.")
             .onDisappear {
                 webcamManager.stopSession()
             }

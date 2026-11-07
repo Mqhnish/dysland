@@ -104,6 +104,18 @@ extension Defaults.Keys {
     static let enableShadow = Key<Bool>("enableShadow", default: true)
     static let cornerRadiusScaling = Key<Bool>("cornerRadiusScaling", default: true)
     static let glassBackground = Key<Bool>("glassBackground", default: true)
+    /// true = clear (see-through) Liquid Glass, false = regular (frosted)
+    static let glassClear = Key<Bool>("glassClear", default: true)
+    /// How dark the glass tint is, 0...0.8
+    static let glassTint = Key<Double>("glassTint", default: 0.2)
+    /// Multiplier on open/close duration (lower = faster)
+    static let notchAnimationSpeed = Key<Double>("notchAnimationSpeed", default: 1.0)
+    /// Spring bounce when the notch opens, 0...0.4
+    static let notchOpenBounce = Key<Double>("notchOpenBounce", default: 0.14)
+    /// Double-click the mirror to pop it out into a floating window
+    static let mirrorPopOutEnabled = Key<Bool>("mirrorPopOutEnabled", default: true)
+    /// Width of the floating mirror window, in points
+    static let mirrorPopOutSize = Key<Double>("mirrorPopOutSize", default: 520)
 
     static let showNotHumanFace = Key<Bool>("showNotHumanFace", default: false)
     static let tileShowLabels = Key<Bool>("tileShowLabels", default: false)
