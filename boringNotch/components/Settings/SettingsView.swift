@@ -1172,6 +1172,9 @@ struct Appearance: View {
     @Default(.showMirror) var showMirror
     @Default(.mirrorPopOutEnabled) var mirrorPopOutEnabled
     @Default(.mirrorPopOutSize) var mirrorPopOutSize
+    @Default(.albumGlow) var albumGlow
+    @Default(.albumGlowIntensity) var albumGlowIntensity
+    @Default(.albumGlowMotion) var albumGlowMotion
 
     let icons: [String] = ["logo2"]
     @State private var selectedIcon: String = "logo2"
@@ -1438,6 +1441,20 @@ struct Appearance: View {
                     }
                 }
                 .disabled(!glassBackground)
+                Toggle("Album colour glow", isOn: $albumGlow)
+                LabeledContent("Glow strength") {
+                    HStack {
+                        Slider(value: $albumGlowIntensity, in: 0.1...1)
+                            .frame(width: 180)
+                        Text("\(Int(albumGlowIntensity * 100))%")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 52, alignment: .trailing)
+                    }
+                }
+                .disabled(!albumGlow)
+                Toggle("Drifting glow", isOn: $albumGlowMotion)
+                    .disabled(!albumGlow)
             } header: {
                 Text("Glass")
             } footer: {

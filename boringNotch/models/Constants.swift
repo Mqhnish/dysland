@@ -108,6 +108,12 @@ extension Defaults.Keys {
     static let glassClear = Key<Bool>("glassClear", default: true)
     /// How dark the glass tint is, 0...0.8
     static let glassTint = Key<Double>("glassTint", default: 0.2)
+    /// Let the album art's colours glow through the notch background
+    static let albumGlow = Key<Bool>("albumGlow", default: true)
+    /// Strength of the album glow, 0...1
+    static let albumGlowIntensity = Key<Double>("albumGlowIntensity", default: 0.55)
+    /// Slowly drift the album glow
+    static let albumGlowMotion = Key<Bool>("albumGlowMotion", default: true)
     /// Multiplier on open/close duration (lower = faster)
     static let notchAnimationSpeed = Key<Double>("notchAnimationSpeed", default: 1.0)
     /// Spring bounce when the notch opens, 0...0.4

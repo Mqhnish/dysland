@@ -34,20 +34,34 @@ struct NotchBackground<S: Shape>: View {
 
     @Default(.glassClear) private var glassClear
     @Default(.glassTint) private var glassTint
+    @Default(.albumGlow) private var albumGlow
+    @Default(.albumGlowIntensity) private var albumGlowIntensity
 
-    private var showGlass: Bool { useGlass && isOpen }
+    @ObservedObject private var music = MusicManager.shared
+
     private var tint: Double { min(max(glassTint, 0), 0.8) }
+    private var showAlbumGlow: Bool { albumGlow && !music.isPlayerIdle }
 
     var body: some View {
         ZStack(alignment: .top) {
+            // Base: glass, or solid black when glass is off.
             if useGlass {
                 glassLayer
+            } else {
+                Rectangle().fill(.black)
             }
 
-            // Solid black on top, faded out when the glass should show through.
+            // Album colours seeping into the background.
+            if showAlbumGlow {
+                AlbumGlowView(active: isOpen)
+                    .opacity(isOpen ? min(max(albumGlowIntensity, 0), 1) : 0)
+                    .saturation(1.2)
+            }
+
+            // Closed: solid black so it blends into the hardware notch.
             Rectangle()
                 .fill(.black)
-                .opacity(showGlass ? 0 : 1)
+                .opacity(isOpen ? 0 : 1)
         }
     }
 
