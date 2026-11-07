@@ -1177,6 +1177,7 @@ struct Appearance: View {
     @Default(.albumGlowIntensity) var albumGlowIntensity
     @Default(.albumGlowMotion) var albumGlowMotion
     @Default(.albumGlowPulse) var albumGlowPulse
+    @Default(.glowCalendarColors) var glowCalendarColors
     @Default(.glassTiles) var glassTiles
 
     let icons: [String] = ["logo2"]
@@ -1477,6 +1478,8 @@ struct Appearance: View {
                     .disabled(!albumGlow)
                 Toggle("Pulse while music plays", isOn: $albumGlowPulse)
                     .disabled(!albumGlow || !albumGlowMotion)
+                Toggle("Blend calendar event colours", isOn: $glowCalendarColors)
+                    .disabled(!albumGlow)
             } header: {
                 Text("Glass")
             } footer: {

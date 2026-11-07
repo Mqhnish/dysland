@@ -113,6 +113,8 @@ extension Defaults.Keys {
     static let glassOpacity = Key<Double>("glassOpacity", default: 1)
     /// Split the open notch into glass tiles (like Control Center) instead of one panel
     static let glassTiles = Key<Bool>("glassTiles", default: true)
+    /// Blend today's calendar event colours into the liquid glow
+    static let glowCalendarColors = Key<Bool>("glowCalendarColors", default: true)
     /// Album glow pulses in time with playback
     static let albumGlowPulse = Key<Bool>("albumGlowPulse", default: true)
     /// Let the album art's colours glow through the notch background

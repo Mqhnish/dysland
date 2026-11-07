@@ -217,7 +217,11 @@ struct CalendarView: View {
             let filteredEvents = EventListView.filteredEvents(
                 events: calendarManager.events
             )
-            if filteredEvents.isEmpty {
+            if calendarManager.calendarAuthorizationStatus != .fullAccess {
+                // Don't claim "No events" when we simply can't read the calendar.
+                CalendarAccessNeededView()
+                Spacer(minLength: 0)
+            } else if filteredEvents.isEmpty {
                 EmptyEventsView(selectedDate: selectedDate)
                 Spacer(minLength: 0)
             } else {
@@ -243,6 +247,36 @@ struct CalendarView: View {
                 selectedDate = Date.now
             }
         }
+    }
+}
+
+/// Shown when the app can't read calendars (for example after a rebuild with a
+/// new signature made macOS forget the permission).
+struct CalendarAccessNeededView: View {
+    @ObservedObject private var calendarManager = CalendarManager.shared
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Image(systemName: "calendar.badge.exclamationmark")
+                .font(.title2)
+                .foregroundStyle(.white.opacity(0.75))
+            Text("Calendar access needed")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.white)
+            Button("Allow in System Settings") {
+                Task { await calendarManager.checkCalendarAuthorization() }
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+            .buttonStyle(.plain)
+            .font(.caption)
+            .foregroundStyle(.white.opacity(0.65))
+            .underline()
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 6)
+        .task { await calendarManager.checkCalendarAuthorization() }
     }
 }
 

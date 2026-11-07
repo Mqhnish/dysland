@@ -28,14 +28,41 @@ struct AlbumGlowView: View {
     let active: Bool
 
     @ObservedObject private var music = MusicManager.shared
+    @ObservedObject private var calendar = CalendarManager.shared
     @Default(.albumGlowMotion) private var motion
     @Default(.albumGlowPulse) private var pulse
+    @Default(.glowCalendarColors) private var useCalendarColors
 
-    @State private var colors: [Color] = []
+    @State private var albumColors: [Color] = []
     @State private var sourceArt: NSImage?
     /// Physics state lives across frames (a class, so stepping it doesn't
     /// trigger extra SwiftUI updates).
     @State private var sim = LiquidSim()
+
+    /// Colours of today's events' calendars (up to 2 distinct ones).
+    private var eventColors: [Color] {
+        guard useCalendarColors, calendar.calendarAuthorizationStatus == .fullAccess else { return [] }
+        var seen = Set<String>()
+        var result: [Color] = []
+        for event in EventListView.filteredEvents(events: calendar.events) {
+            let ns = event.calendar.color.usingColorSpace(.sRGB) ?? event.calendar.color
+            let key = String(format: "%.2f-%.2f-%.2f", ns.redComponent, ns.greenComponent, ns.blueComponent)
+            if seen.insert(key).inserted { result.append(Color(nsColor: ns)) }
+            if result.count == 2 { break }
+        }
+        return result
+    }
+
+    /// Album colours while music is active, plus calendar colours flowing in.
+    private var colors: [Color] {
+        let album = music.isPlayerIdle ? [] : albumColors
+        let combined = album + eventColors
+        // A single colour still needs a partner so the liquid has depth.
+        if combined.count == 1, let only = combined.first {
+            return [only, only.opacity(0.7)]
+        }
+        return combined
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -71,7 +98,7 @@ struct AlbumGlowView: View {
         sourceArt = art
         Task.detached(priority: .utility) {
             let picked = AlbumGlowView.pickColors(from: art)
-            await MainActor.run { if let picked { colors = picked } }
+            await MainActor.run { if let picked { albumColors = picked } }
         }
     }
 
@@ -130,19 +157,21 @@ struct AlbumGlowView: View {
 }
 
 
-// MARK: - Liquid physics
+// MARK: - Liquid physics (ferrofluid-style)
 
-/// A tiny physics world for the glow. World units: the panel's height is 1,
-/// its width is `aspect`. Blobs:
-/// - wander toward slow, drifting targets (so the liquid keeps moving),
-/// - pull toward nearby blobs and resist moving apart (cohesion + viscosity),
-///   which makes them cling, merge and stretch into necks before pinching off,
-/// - push apart only when squashed deep into each other,
-/// - have springy radii, so a pulse makes them wobble rather than just grow.
+/// A small physics world for the glow, tuned to feel like ferrofluid.
+/// World units: panel height is 1, width is `aspect`.
 ///
-/// Pulses aren't on every beat: a slow "energy" curve rises and falls over
-/// tens of seconds, beats are skipped at random (more often when energy is
-/// low), and each beat only hits some blobs, as a ripple across the panel.
+/// - Three invisible "magnets" roam the whole panel. Each blob is drawn to one
+///   magnet and swirls around it, so the liquid gathers in moving clusters.
+/// - Every few seconds a blob switches magnets: it stretches out of its
+///   cluster into a strand toward the other one, then pinches off.
+/// - Nearby blobs stick (cohesion + viscosity) and push back only when squashed.
+/// - On a beat, the liquid fires spikes: small droplets shoot out of the
+///   surface on a stretchy tether and snap back in. Their parent blobs swell
+///   hard and wobble on springy radii.
+/// - Beats vary: a slow energy curve sets how often and how hard they hit,
+///   some beats are skipped, and each hits one region of the panel.
 final class LiquidSim {
     struct Blob {
         var p: SIMD2<Double>
@@ -152,6 +181,11 @@ final class LiquidSim {
         var rv: Double = 0
         let colorIndex: Int
         let seed: Double
+        var magnet: Int = 0
+        // Droplets (spikes)
+        var isDroplet = false
+        var parent = 0
+        var age: Double = 0
     }
 
     private(set) var blobs: [Blob] = []
@@ -159,8 +193,11 @@ final class LiquidSim {
     /// 0...1, recent pulse strength (used for the gloss).
     private(set) var glow: Double = 0
 
+    private let mainCount = 10
+    private let magnetCount = 3
     private var lastT: Double?
     private var nextBeat: Double = 0
+    private var nextSwitch: Double = 0
     private var beatCount = 0
 
     func prepare(size: CGSize) {
@@ -170,17 +207,23 @@ final class LiquidSim {
     }
 
     private func seed() {
-        blobs = (0..<10).map { i in
+        blobs = (0..<mainCount).map { i in
             let d = Double(i)
-            let r = 0.30 + 0.12 * (0.5 + 0.5 * sin(d * 2.7))
+            let r = 0.22 + 0.1 * (0.5 + 0.5 * sin(d * 2.7))
             return Blob(
-                p: SIMD2((d + 0.5) / 10 * aspect, 0.5 + 0.3 * sin(d * 2.1)),
-                baseRadius: r,
-                r: r,
-                colorIndex: i,
-                seed: d * 1.618
+                p: SIMD2((d + 0.5) / Double(mainCount) * aspect, 0.5 + 0.3 * sin(d * 2.1)),
+                baseRadius: r, r: r, colorIndex: i, seed: d * 1.618,
+                magnet: i % magnetCount
             )
         }
+    }
+
+    private func magnetPosition(_ k: Int, _ t: Double) -> SIMD2<Double> {
+        let d = Double(k)
+        let x = 0.5 + 0.40 * sin(t * (0.10 + 0.035 * d) + d * 2.4)
+                    + 0.06 * sin(t * 0.47 + d)
+        let y = 0.5 + 0.26 * sin(t * (0.17 + 0.05 * d) + d * 1.3)
+        return SIMD2(min(max(x, 0.08), 0.92) * aspect, y)
     }
 
     func step(to t: Double, size: CGSize, beatsEnabled: Bool) {
@@ -190,46 +233,48 @@ final class LiquidSim {
         guard dt > 0 else { return }
 
         if beatsEnabled { handleBeats(t: t) } else { nextBeat = t }
-        glow *= exp(-dt * 3)
+        if t >= nextSwitch { switchMagnet(t: t) }
+        glow *= exp(-dt * 2.5)
 
         let n = blobs.count
         var force = [SIMD2<Double>](repeating: .zero, count: n)
+        let magnets = (0..<magnetCount).map { magnetPosition($0, t) }
 
         for i in 0..<n {
             let b = blobs[i]
-            // Wander: each blob chases its own slow figure-of-eight target.
-            let s = 0.6 + 0.4 * sin(b.seed)
-            let target = SIMD2(
-                (0.5 + 0.44 * sin(t * 0.07 * s + b.seed)) * aspect,
-                0.5 + 0.36 * cos(t * 0.11 * s + b.seed * 1.3)
-            )
-            force[i] += (target - b.p) * 0.22
+            if b.isDroplet {
+                // Stretchy tether back to the blob it came from.
+                let parent = blobs[b.parent]
+                force[i] += (parent.p - b.p) * 14
+                continue
+            }
+            // Pull toward its magnet, plus a swirl around it.
+            let toMagnet = magnets[b.magnet] - b.p
+            force[i] += toMagnet * 1.3
+            force[i] += SIMD2(-toMagnet.y, toMagnet.x) * (0.55 + 0.2 * sin(b.seed))
 
-            // Soft walls keep the liquid on the panel.
-            let m = b.r * 0.2
-            if b.p.x < m { force[i].x += (m - b.p.x) * 3 }
-            if b.p.x > aspect - m { force[i].x -= (b.p.x - (aspect - m)) * 3 }
-            if b.p.y < m { force[i].y += (m - b.p.y) * 3 }
-            if b.p.y > 1 - m { force[i].y -= (b.p.y - (1 - m)) * 3 }
+            // Soft walls.
+            let m = b.r * 0.25
+            if b.p.x < m { force[i].x += (m - b.p.x) * 5 }
+            if b.p.x > aspect - m { force[i].x -= (b.p.x - (aspect - m)) * 5 }
+            if b.p.y < m { force[i].y += (m - b.p.y) * 5 }
+            if b.p.y > 1 - m { force[i].y -= (b.p.y - (1 - m)) * 5 }
         }
 
-        // Cohesion, viscosity and overlap pressure between pairs.
-        for i in 0..<n {
-            for j in (i + 1)..<n {
+        // Cohesion, viscosity and pressure between main blobs.
+        for i in 0..<mainCount {
+            for j in (i + 1)..<mainCount {
                 let a = blobs[i], b = blobs[j]
                 let delta = b.p - a.p
                 let dist = max(sqrt((delta * delta).sum()), 0.0001)
-                let reach = (a.r + b.r) * 2.0
+                let reach = (a.r + b.r) * 1.35
                 guard dist < reach else { continue }
                 let dir = delta / dist
-                let rest = (a.r + b.r) * 0.62          // like to overlap → merge
-                let closeness = 1 - dist / reach         // 0 at edge of reach, 1 touching
-                var f = dir * (dist - rest) * 0.9 * closeness
-                if dist < rest * 0.55 {                  // squashed: push back
-                    f -= dir * (rest * 0.55 - dist) * 4
-                }
-                // Viscosity: neighbours drag each other along, so they move as one.
-                f += (b.v - a.v) * 1.1 * closeness
+                let rest = (a.r + b.r) * 0.6
+                let closeness = 1 - dist / reach
+                var f = dir * (dist - rest) * 1.2 * closeness
+                if dist < rest * 0.6 { f -= dir * (rest * 0.6 - dist) * 6 }
+                f += (b.v - a.v) * 0.7 * closeness
                 force[i] += f
                 force[j] -= f
             }
@@ -238,50 +283,84 @@ final class LiquidSim {
         for i in 0..<n {
             var b = blobs[i]
             b.v += force[i] * dt
-            b.v *= exp(-dt * 1.4)                        // thick liquid, not water
+            b.v *= exp(-dt * (b.isDroplet ? 3.2 : 1.8))
             b.p += b.v * dt
-
-            // Springy radius: breathes slowly, wobbles after a pulse.
-            let rest = b.baseRadius * (1 + 0.08 * sin(t * 0.45 + b.seed))
-            let accel = (rest - b.r) * 22 - b.rv * 4.5
-            b.rv += accel * dt
-            b.r = max(b.baseRadius * 0.6, b.r + b.rv * dt)
+            if b.isDroplet {
+                b.age += dt
+                b.r = b.baseRadius * max(0.35, 1 - b.age * 0.6)
+            } else {
+                let rest = b.baseRadius * (1 + 0.1 * sin(t * 0.5 + b.seed))
+                let accel = (rest - b.r) * 26 - b.rv * 3.2   // springy, wobbly
+                b.rv += accel * dt
+                b.r = max(b.baseRadius * 0.55, b.r + b.rv * dt)
+            }
             blobs[i] = b
         }
+
+        // Absorb droplets that have snapped back (or lived long enough).
+        blobs.removeAll { d in
+            guard d.isDroplet else { return false }
+            let parent = blobs[d.parent]
+            let delta = parent.p - d.p
+            let dist = sqrt((delta * delta).sum())
+            return (d.age > 0.5 && dist < parent.r * 0.5) || d.age > 1.8
+        }
+    }
+
+    private func switchMagnet(t: Double) {
+        nextSwitch = t + Double.random(in: 4...9)
+        let i = Int.random(in: 0..<mainCount)
+        blobs[i].magnet = (blobs[i].magnet + Int.random(in: 1..<magnetCount)) % magnetCount
     }
 
     private func handleBeats(t: Double) {
         guard t >= nextBeat else { return }
 
         let beatInterval = 60.0 / 112.0
-        // Slow musical "energy": calm verses and busier choruses.
-        let energy = 0.25 + 0.75
-            * (0.5 + 0.5 * sin(t * 0.045))
-            * (0.55 + 0.45 * sin(t * 0.13 + 1.7))
+        let energy = 0.45 + 0.55
+            * (0.5 + 0.5 * sin(t * 0.05))
+            * (0.6 + 0.4 * sin(t * 0.14 + 1.7))
 
         beatCount += 1
-        // Sometimes hold for two beats; more often when energy is low.
-        let skip = Double.random(in: 0...1) < 0.35 * (1 - energy) + 0.08
+        let skip = Double.random(in: 0...1) < 0.3 * (1 - energy) + 0.06
         nextBeat = t + beatInterval * (skip ? 2 : 1)
+        guard Double.random(in: 0...1) < 0.4 + 0.55 * energy else { return }
 
-        // Fire only some beats, more of them when energy is high.
-        guard Double.random(in: 0...1) < 0.25 + 0.6 * energy else { return }
-
-        let accent = beatCount % 8 == 0 ? 1.6 : 1.0
-        let strength = energy * Double.random(in: 0.55...1.0) * accent
+        let accent = beatCount % 8 == 0 ? 1.7 : 1.0
+        let strength = min(1.6, energy * Double.random(in: 0.65...1.0) * accent)
         glow = max(glow, min(1, strength))
 
-        // A ripple: blobs near a random point react most, far ones barely.
-        let center = Double.random(in: 0...aspect)
-        let centroid = blobs.reduce(SIMD2<Double>.zero) { $0 + $1.p } / Double(max(blobs.count, 1))
-        for i in blobs.indices {
-            let falloff = max(0, 1 - abs(blobs[i].p.x - center) / (aspect * 0.6))
-            guard Double.random(in: 0...1) < 0.35 + 0.6 * falloff else { continue }
-            blobs[i].rv += strength * falloff * 1.6 * blobs[i].baseRadius
-            // A small outward push; cohesion then pulls the liquid back together.
-            let away = blobs[i].p - centroid
-            let len = max(sqrt((away * away).sum()), 0.0001)
-            blobs[i].v += away / len * strength * falloff * 0.22
+        // Hit one region of the panel.
+        let center = Double.random(in: 0.1...0.9) * aspect
+        var spikesLeft = Int(3 + 7 * strength)
+        let liveDroplets = blobs.filter(\.isDroplet).count
+
+        for i in 0..<mainCount {
+            let falloff = max(0, 1 - abs(blobs[i].p.x - center) / (aspect * 0.45))
+            guard falloff > 0.05 else { continue }
+
+            // Swell hard; the spring makes it wobble back.
+            blobs[i].rv += strength * falloff * 4.2 * blobs[i].baseRadius
+
+            // Ferrofluid spikes shooting out of the surface.
+            let spikes = min(spikesLeft, Int((Double.random(in: 0.5...2.5) * falloff * strength).rounded()))
+            guard spikes > 0, liveDroplets + (Int(3 + 7 * strength) - spikesLeft) < 36 else { continue }
+            for _ in 0..<spikes {
+                let angle = Double.random(in: 0..<(2 * .pi))
+                let dir = SIMD2(cos(angle), sin(angle))
+                let parent = blobs[i]
+                blobs.append(Blob(
+                    p: parent.p + dir * parent.r * 0.7,
+                    v: parent.v + dir * Double.random(in: 2.2...3.6) * strength,
+                    baseRadius: Double.random(in: 0.06...0.11),
+                    r: 0.1,
+                    colorIndex: parent.colorIndex,
+                    seed: Double.random(in: 0...10),
+                    isDroplet: true,
+                    parent: i
+                ))
+            }
+            spikesLeft -= spikes
         }
     }
 }
@@ -289,7 +368,9 @@ final class LiquidSim {
 enum LiquidBlobs {
     static func draw(in ctx: inout GraphicsContext, size: CGSize, sim: LiquidSim, colors: [Color]) {
         let h = size.height
-        let blur = h * 0.2
+        // Small enough that the spike droplets survive the threshold, big
+        // enough that touching blobs fuse with smooth necks.
+        let blur = h * 0.11
 
         func circles(scale: Double, dx: Double, dy: Double, only colorIndex: Int?) -> Path {
             var path = Path()

@@ -42,10 +42,20 @@ struct NotchBackground<S: Shape>: View {
     @Default(.albumGlow) private var albumGlow
     @Default(.albumGlowIntensity) private var albumGlowIntensity
 
+    @Default(.glowCalendarColors) private var glowCalendarColors
+
     @ObservedObject private var music = MusicManager.shared
+    @ObservedObject private var calendar = CalendarManager.shared
 
     private var tint: Double { min(max(glassTint, 0), 0.8) }
-    private var showAlbumGlow: Bool { albumGlow && !music.isPlayerIdle }
+    /// Glow while music is active, or when today's events can lend their colours.
+    private var showAlbumGlow: Bool {
+        guard albumGlow else { return false }
+        let hasEvents = glowCalendarColors
+            && calendar.calendarAuthorizationStatus == .fullAccess
+            && !EventListView.filteredEvents(events: calendar.events).isEmpty
+        return !music.isPlayerIdle || hasEvents
+    }
     private var tilesMode: Bool { useGlass && glassTiles && GlassSupport.available }
 
     var body: some View {
