@@ -34,6 +34,7 @@ struct NotchBackground<S: Shape>: View {
 
     @Default(.glassClear) private var glassClear
     @Default(.glassTint) private var glassTint
+    @Default(.glassOpacity) private var glassOpacity
     @Default(.albumGlow) private var albumGlow
     @Default(.albumGlowIntensity) private var albumGlowIntensity
 
@@ -55,7 +56,6 @@ struct NotchBackground<S: Shape>: View {
             if showAlbumGlow {
                 AlbumGlowView(active: isOpen)
                     .opacity(isOpen ? min(max(albumGlowIntensity, 0), 1) : 0)
-                    .saturation(1.2)
             }
 
             // Closed: solid black so it blends into the hardware notch.
@@ -73,9 +73,11 @@ struct NotchBackground<S: Shape>: View {
             // rounded top corners get clipped away by the notch shape.
             NativeGlassView(
                 style: glassClear ? .clear : .regular,
-                tint: NSColor.black.withAlphaComponent(tint),
+                // No tint at 0: tinting toward black is what made it look grey.
+                tint: tint > 0.001 ? NSColor.black.withAlphaComponent(tint) : nil,
                 cornerRadius: 24
             )
+            .opacity(min(max(glassOpacity, 0.3), 1))
             .padding(.top, -40)
         } else {
             // Older macOS: frosted material with a dark tint.

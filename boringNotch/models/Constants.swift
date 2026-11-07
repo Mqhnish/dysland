@@ -104,10 +104,13 @@ extension Defaults.Keys {
     static let enableShadow = Key<Bool>("enableShadow", default: true)
     static let cornerRadiusScaling = Key<Bool>("cornerRadiusScaling", default: true)
     static let glassBackground = Key<Bool>("glassBackground", default: true)
-    /// true = clear (see-through) Liquid Glass, false = regular (frosted)
-    static let glassClear = Key<Bool>("glassClear", default: true)
-    /// How dark the glass tint is, 0...0.8
-    static let glassTint = Key<Double>("glassTint", default: 0.2)
+    /// true = clear Liquid Glass (system-dimmed, meant for over media),
+    /// false = regular, which is what Control Center uses
+    static let glassClear = Key<Bool>("glassClearV2", default: false)
+    /// Extra dark tint on the glass, 0...0.8. 0 = no tint, like Apple's panels.
+    static let glassTint = Key<Double>("glassTintV2", default: 0)
+    /// How strongly the glass is drawn, 0.3...1. Lower = more see-through.
+    static let glassOpacity = Key<Double>("glassOpacity", default: 1)
     /// Let the album art's colours glow through the notch background
     static let albumGlow = Key<Bool>("albumGlow", default: true)
     /// Strength of the album glow, 0...1

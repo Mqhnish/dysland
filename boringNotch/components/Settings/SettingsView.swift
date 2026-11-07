@@ -1167,6 +1167,7 @@ struct Appearance: View {
     @Default(.glassBackground) var glassBackground
     @Default(.glassClear) var glassClear
     @Default(.glassTint) var glassTint
+    @Default(.glassOpacity) var glassOpacity
     @Default(.notchAnimationSpeed) var notchAnimationSpeed
     @Default(.notchOpenBounce) var notchOpenBounce
     @Default(.showMirror) var showMirror
@@ -1425,12 +1426,23 @@ struct Appearance: View {
             Section {
                 Toggle("Glass background when open", isOn: $glassBackground)
                 Picker("Glass style", selection: $glassClear) {
-                    Text("Clear").tag(true)
-                    Text("Frosted").tag(false)
+                    Text("Standard").tag(false)
+                    Text("Clear (dimmed)").tag(true)
                 }
                 .pickerStyle(.segmented)
                 .disabled(!glassBackground)
-                LabeledContent("Glass darkness") {
+                LabeledContent("Glass opacity") {
+                    HStack {
+                        Slider(value: $glassOpacity, in: 0.3...1)
+                            .frame(width: 180)
+                        Text("\(Int(glassOpacity * 100))%")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 52, alignment: .trailing)
+                    }
+                }
+                .disabled(!glassBackground)
+                LabeledContent("Extra darkness") {
                     HStack {
                         Slider(value: $glassTint, in: 0...0.8)
                             .frame(width: 180)
@@ -1453,12 +1465,12 @@ struct Appearance: View {
                     }
                 }
                 .disabled(!albumGlow)
-                Toggle("Drifting glow", isOn: $albumGlowMotion)
+                Toggle("Flowing glow", isOn: $albumGlowMotion)
                     .disabled(!albumGlow)
             } header: {
                 Text("Glass")
             } footer: {
-                Text("Clear glass shows more of what's behind the notch. Raise the darkness if text gets hard to read.")
+                Text("Standard matches Control Center. Lower the opacity for a more see-through notch, and add darkness only if text gets hard to read.")
                     .foregroundStyle(.secondary)
                     .font(.caption)
             }

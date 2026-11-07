@@ -67,8 +67,11 @@ struct AlbumArtView: View {
             }
             .buttonStyle(PlainButtonStyle())
             .scaleEffect(musicManager.isPlaying ? 1 : 0.85)
-            
-            albumArtDarkOverlay
+
+            // This blurred black smudge reads as a grey patch on glass.
+            if !Defaults[.glassBackground] {
+                albumArtDarkOverlay
+            }
         }
     }
 
