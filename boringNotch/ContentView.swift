@@ -103,11 +103,13 @@ struct ContentView: View {
                         : cornerRadiusInsets.closed.bottom
                     )
                     .padding([.horizontal, .bottom], vm.notchState == .open ? 12 : 0)
-                    .background {
+                    .coordinateSpace(name: "notchPanel")
+                    .backgroundPreferenceValue(GlassTileFramesKey.self) { frames in
                         NotchBackground(
                             shape: currentNotchShape,
                             isOpen: vm.notchState == .open,
-                            useGlass: glassBackground
+                            useGlass: glassBackground,
+                            tileFrames: frames
                         )
                     }
                     .clipShape(currentNotchShape)

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA00000000000000000000F2 /* ScreenBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000000F1 /* ScreenBackdrop.swift */; };
 		AA00000000000000000000E2 /* AudioReactor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000000E1 /* AudioReactor.swift */; };
 		AA00000000000000000000D2 /* LiquidShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000000D1 /* LiquidShaders.metal */; };
 		AA00000000000000000000C2 /* AlbumGlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000000C1 /* AlbumGlowView.swift */; };
@@ -186,6 +187,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AA00000000000000000000F1 /* ScreenBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenBackdrop.swift; sourceTree = "<group>"; };
 		AA00000000000000000000E1 /* AudioReactor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AudioReactor.swift"; sourceTree = "<group>"; };
 		AA00000000000000000000D1 /* LiquidShaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = "metal/LiquidShaders.metal"; sourceTree = "<group>"; };
 		AA00000000000000000000C1 /* AlbumGlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumGlowView.swift; sourceTree = "<group>"; };
@@ -524,6 +526,7 @@
 				F38DE6472D8243E2008B5C6D /* BatteryActivityManager.swift */,
 				112FB7342CCF16F70015238C /* NotchSpaceManager.swift */,
 				147163992C5D35FF0068B555 /* MusicManager.swift */,
+				AA00000000000000000000F1 /* ScreenBackdrop.swift */,
 				AA00000000000000000000E1 /* AudioReactor.swift */,
 				149E0B962C737D00006418B1 /* WebcamManager.swift */,
 				14C08BB52C8DE42D000F8AA0 /* CalendarManager.swift */,
@@ -971,6 +974,7 @@
 				149E0B9A2C737D40006418B1 /* WebcamView.swift in Sources */,
 				AA00000000000000000000B2 /* FullscreenMirror.swift in Sources */,
 				1471639A2C5D35FF0068B555 /* MusicManager.swift in Sources */,
+				AA00000000000000000000F2 /* ScreenBackdrop.swift in Sources */,
 				AA00000000000000000000E2 /* AudioReactor.swift in Sources */,
 				B1B112932C6A577E00093D8F /* MouseTracker.swift in Sources */,
 				B1C448962C9712C4001F0858 /* ActionBar.swift in Sources */,

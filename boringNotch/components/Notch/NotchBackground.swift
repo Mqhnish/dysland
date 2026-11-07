@@ -34,6 +34,14 @@ struct NotchBackground<S: Shape>: View {
     let shape: S
     let isOpen: Bool
     let useGlass: Bool
+    /// Where the glass tiles are (in the "notchPanel" coordinate space),
+    /// used by the refraction shader.
+    var tileFrames: [GlassTileFrame] = []
+
+    @ObservedObject private var backdrop = ScreenBackdrop.shared
+    @Default(.realRefraction) private var realRefraction
+    @Default(.refractionStrength) private var refractionStrength
+    @Default(.glassFrost) private var glassFrost
 
     @Default(.glassClear) private var glassClear
     @Default(.glassTint) private var glassTint
@@ -58,7 +66,83 @@ struct NotchBackground<S: Shape>: View {
     }
     private var tilesMode: Bool { useGlass && glassTiles && GlassSupport.available }
 
+    /// Our own liquid glass: the captured backdrop, refracted at tile edges.
+    private var customRefraction: Bool {
+        tilesMode && realRefraction && backdrop.hasFrame && isOpen
+    }
+
+    private var notchWindow: NSWindow? {
+        NSApp.windows.first { $0 is BoringNotchSkyLightWindow && $0.isVisible }
+    }
+
     var body: some View {
+        ZStack(alignment: .top) {
+            if customRefraction {
+                refractedBackdrop
+            } else {
+                standardLayers
+            }
+
+            // Closed: solid black so it blends into the hardware notch.
+            Rectangle()
+                .fill(.black)
+                .opacity(isOpen ? 0 : 1)
+        }
+        .overlay {
+            // Hairline rim so the panel's outline reads over busy backgrounds.
+            shape.stroke(.white.opacity(isOpen && tilesMode ? 0.12 : 0), lineWidth: 1)
+        }
+        .onAppear { updateCapture(open: isOpen) }
+        .onChange(of: isOpen) { _, open in updateCapture(open: open) }
+        .onChange(of: realRefraction) { _, _ in updateCapture(open: isOpen) }
+    }
+
+    private func updateCapture(open: Bool) {
+        if open && tilesMode && realRefraction {
+            backdrop.start(for: notchWindow)
+        } else {
+            backdrop.stop()
+        }
+    }
+
+    private var rectFloats: [Float] {
+        tileFrames.flatMap { f -> [Float] in
+            [Float(f.rect.minX), Float(f.rect.minY), Float(f.rect.width), Float(f.rect.height), Float(f.radius)]
+        }
+    }
+
+    private var refractedBackdrop: some View {
+        GeometryReader { geo in
+            let origin = geo.frame(in: .global).origin
+            ZStack(alignment: .topLeading) {
+                if let image = backdrop.image {
+                    Image(decorative: image, scale: 1)
+                        .resizable()
+                        .frame(width: backdrop.windowSize.width, height: backdrop.windowSize.height)
+                        .offset(x: -origin.x, y: -origin.y)
+                }
+                Rectangle().fill(.black.opacity(0.06 + tint))
+                if showAlbumGlow {
+                    AlbumGlowView(active: isOpen)
+                        .opacity(min(max(albumGlowIntensity, 0), 1))
+                }
+            }
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
+            .clipped()
+            .layerEffect(
+                ShaderLibrary.liquidGlass(
+                    .float2(geo.size),
+                    .float(Float(min(max(refractionStrength, 0), 1))),
+                    .float(Float(min(max(glassFrost, 0), 1))),
+                    .floatArray(rectFloats)
+                ),
+                maxSampleOffset: CGSize(width: 40, height: 40)
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var standardLayers: some View {
         ZStack(alignment: .top) {
             // Base
             if tilesMode {
@@ -75,15 +159,6 @@ struct NotchBackground<S: Shape>: View {
                 AlbumGlowView(active: isOpen)
                     .opacity(isOpen ? min(max(albumGlowIntensity, 0), 1) : 0)
             }
-
-            // Closed: solid black so it blends into the hardware notch.
-            Rectangle()
-                .fill(.black)
-                .opacity(isOpen ? 0 : 1)
-        }
-        .overlay {
-            // Hairline rim so the panel's outline reads over busy backgrounds.
-            shape.stroke(.white.opacity(isOpen && tilesMode ? 0.12 : 0), lineWidth: 1)
         }
     }
 
@@ -115,6 +190,31 @@ enum GlassSupport {
 }
 
 /// Wraps content in its own Liquid Glass tile when tiles mode is on.
+struct GlassTileFrame: Equatable {
+    var rect: CGRect
+    var radius: CGFloat
+}
+
+struct GlassTileFramesKey: PreferenceKey {
+    static let defaultValue: [GlassTileFrame] = []
+    static func reduce(value: inout [GlassTileFrame], nextValue: () -> [GlassTileFrame]) {
+        value.append(contentsOf: nextValue())
+    }
+}
+
+/// Reports a tile's frame in the notch panel's coordinate space.
+private struct TileFrameReporter: View {
+    let radius: CGFloat
+    var body: some View {
+        GeometryReader { g in
+            Color.clear.preference(
+                key: GlassTileFramesKey.self,
+                value: [GlassTileFrame(rect: g.frame(in: .named("notchPanel")), radius: radius)]
+            )
+        }
+    }
+}
+
 struct GlassTile: ViewModifier {
     var cornerRadius: CGFloat = 18
     var padding: CGFloat = 8
@@ -122,18 +222,27 @@ struct GlassTile: ViewModifier {
     @Default(.glassBackground) private var glassBackground
     @Default(.glassTiles) private var glassTiles
     @Default(.glassClear) private var glassClear
+    @Default(.realRefraction) private var realRefraction
+    @ObservedObject private var backdrop = ScreenBackdrop.shared
 
     func body(content: Content) -> some View {
         if glassBackground && glassTiles, #available(macOS 26.0, *) {
             content
                 .padding(padding)
                 .background {
-                    NativeGlassView(
-                        style: glassClear ? .clear : .regular,
-                        tint: nil,
-                        cornerRadius: cornerRadius,
-                        interactive: true
-                    )
+                    ZStack {
+                        // While our refraction shader runs it draws the glass,
+                        // so Apple's would only blur it away.
+                        if !(realRefraction && backdrop.hasFrame) {
+                            NativeGlassView(
+                                style: glassClear ? .clear : .regular,
+                                tint: nil,
+                                cornerRadius: cornerRadius,
+                                interactive: true
+                            )
+                        }
+                        TileFrameReporter(radius: cornerRadius)
+                    }
                 }
         } else {
             content
@@ -152,11 +261,20 @@ extension View {
 struct HeaderButtonBackground: View {
     @Default(.glassBackground) private var glassBackground
     @Default(.glassTiles) private var glassTiles
+    @Default(.realRefraction) private var realRefraction
+    @ObservedObject private var backdrop = ScreenBackdrop.shared
 
     var body: some View {
         if glassBackground && glassTiles, #available(macOS 26.0, *) {
-            NativeGlassView(style: .regular, tint: nil, cornerRadius: 15, interactive: true)
-                .frame(width: 30, height: 30)
+            ZStack {
+                if !(realRefraction && backdrop.hasFrame) {
+                    NativeGlassView(style: .regular, tint: nil, cornerRadius: 15, interactive: true)
+                } else {
+                    Color.white.opacity(0.001) // keep the button clickable
+                }
+                TileFrameReporter(radius: 15)
+            }
+            .frame(width: 30, height: 30)
         } else {
             Capsule()
                 .fill(glassBackground ? Color.white.opacity(0.1) : Color.black)
