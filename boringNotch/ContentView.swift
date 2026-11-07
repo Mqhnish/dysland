@@ -116,10 +116,14 @@ struct ContentView: View {
                             .frame(height: 1)
                             .padding(.horizontal, topCornerRadius)
                     }
-                    .shadow(
-                        color: ((vm.notchState == .open || isHovering) && Defaults[.enableShadow] && !glassBackground)
-                            ? .black.opacity(0.7) : .clear, radius: Defaults[.cornerRadiusScaling] ? 6 : 4
-                    )
+                    // Shadows render off-screen, which hides the backdrop from the
+                    // glass, so skip the modifier entirely when glass is on.
+                    .conditionalModifier(!glassBackground) { view in
+                        view.shadow(
+                            color: ((vm.notchState == .open || isHovering) && Defaults[.enableShadow])
+                                ? .black.opacity(0.7) : .clear, radius: Defaults[.cornerRadiusScaling] ? 6 : 4
+                        )
+                    }
                     .padding(
                         .bottom,
                         vm.effectiveClosedNotchHeight == 0 ? 10 : 0
@@ -208,7 +212,9 @@ struct ContentView: View {
         }
         .padding(.bottom, 8)
         .frame(maxWidth: windowSize.width, maxHeight: windowSize.height, alignment: .top)
-        .compositingGroup()
+        // compositingGroup flattens everything into an off-screen layer, so glass
+        // inside it can't see the desktop. Only use it for the solid black look.
+        .conditionalModifier(!glassBackground) { $0.compositingGroup() }
         .scaleEffect(
             x: gestureScale,
             y: gestureScale,

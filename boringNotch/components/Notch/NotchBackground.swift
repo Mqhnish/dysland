@@ -54,17 +54,43 @@ struct NotchBackground<S: Shape>: View {
     @ViewBuilder
     private var glassLayer: some View {
         if #available(macOS 26.0, *) {
-            Rectangle()
-                .fill(.clear)
-                .glassEffect(
-                    (glassClear ? Glass.clear : Glass.regular).tint(.black.opacity(tint)),
-                    in: shape
-                )
+            // AppKit's own Liquid Glass view: samples what's behind the window and
+            // draws Apple's edge highlight. It's extended above the panel so its
+            // rounded top corners get clipped away by the notch shape.
+            NativeGlassView(
+                style: glassClear ? .clear : .regular,
+                tint: NSColor.black.withAlphaComponent(tint),
+                cornerRadius: 24
+            )
+            .padding(.top, -40)
         } else {
             // Older macOS: frosted material with a dark tint.
             Rectangle()
                 .fill(.ultraThinMaterial)
                 .overlay(Color.black.opacity(tint + 0.15))
         }
+    }
+}
+
+@available(macOS 26.0, *)
+struct NativeGlassView: NSViewRepresentable {
+    var style: NSGlassEffectView.Style
+    var tint: NSColor?
+    var cornerRadius: CGFloat
+
+    func makeNSView(context: Context) -> NSGlassEffectView {
+        let view = NSGlassEffectView()
+        apply(to: view)
+        return view
+    }
+
+    func updateNSView(_ view: NSGlassEffectView, context: Context) {
+        apply(to: view)
+    }
+
+    private func apply(to view: NSGlassEffectView) {
+        if view.style != style { view.style = style }
+        if view.tintColor != tint { view.tintColor = tint }
+        if view.cornerRadius != cornerRadius { view.cornerRadius = cornerRadius }
     }
 }
