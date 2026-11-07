@@ -298,9 +298,12 @@ final class LiquidSim {
         }
 
         // Absorb droplets that have snapped back (or lived long enough).
+        // Read parents from a copy: looking into `blobs` while `removeAll`
+        // is modifying it is an exclusivity violation and crashes the app.
+        let parents = Array(blobs.prefix(mainCount))
         blobs.removeAll { d in
-            guard d.isDroplet else { return false }
-            let parent = blobs[d.parent]
+            guard d.isDroplet, d.parent < parents.count else { return false }
+            let parent = parents[d.parent]
             let delta = parent.p - d.p
             let dist = sqrt((delta * delta).sum())
             return (d.age > 0.5 && dist < parent.r * 0.5) || d.age > 1.8
