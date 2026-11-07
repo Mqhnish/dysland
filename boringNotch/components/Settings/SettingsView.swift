@@ -1178,6 +1178,11 @@ struct Appearance: View {
     @Default(.albumGlowMotion) var albumGlowMotion
     @Default(.albumGlowPulse) var albumGlowPulse
     @Default(.glowCalendarColors) var glowCalendarColors
+    @Default(.visualizerSpikiness) var visualizerSpikiness
+    @Default(.realAudioReaction) var realAudioReaction
+    @Default(.realRefraction) var realRefraction
+    @Default(.refractionStrength) var refractionStrength
+    @Default(.glassFrost) var glassFrost
     @Default(.glassTiles) var glassTiles
 
     let icons: [String] = ["logo2"]
@@ -1480,6 +1485,43 @@ struct Appearance: View {
                     .disabled(!albumGlow || !albumGlowMotion)
                 Toggle("Blend calendar event colours", isOn: $glowCalendarColors)
                     .disabled(!albumGlow)
+                LabeledContent("Ferrofluid spikes") {
+                    HStack {
+                        Slider(value: $visualizerSpikiness, in: 0...1)
+                            .frame(width: 180)
+                        Text("\(Int(visualizerSpikiness * 100))%")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 52, alignment: .trailing)
+                    }
+                }
+                .disabled(!albumGlow)
+                Toggle("React to the real music", isOn: $realAudioReaction)
+                    .disabled(!albumGlow)
+                Toggle("Real refraction (needs Screen Recording)", isOn: $realRefraction)
+                    .disabled(!glassBackground)
+                LabeledContent("Refraction strength") {
+                    HStack {
+                        Slider(value: $refractionStrength, in: 0...1)
+                            .frame(width: 180)
+                        Text("\(Int(refractionStrength * 100))%")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 52, alignment: .trailing)
+                    }
+                }
+                .disabled(!glassBackground || !realRefraction)
+                LabeledContent("Frost") {
+                    HStack {
+                        Slider(value: $glassFrost, in: 0...1)
+                            .frame(width: 180)
+                        Text("\(Int(glassFrost * 100))%")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 52, alignment: .trailing)
+                    }
+                }
+                .disabled(!glassBackground || !realRefraction)
             } header: {
                 Text("Glass")
             } footer: {

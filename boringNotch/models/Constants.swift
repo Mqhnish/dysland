@@ -111,6 +111,16 @@ extension Defaults.Keys {
     static let glassTint = Key<Double>("glassTintV2", default: 0)
     /// How strongly the glass is drawn, 0.3...1. Lower = more see-through.
     static let glassOpacity = Key<Double>("glassOpacity", default: 1)
+    /// Spike strength on the ferrofluid visualiser, 0...1
+    static let visualizerSpikiness = Key<Double>("visualizerSpikiness", default: 0.6)
+    /// React to the real system audio (needs System Audio Recording permission)
+    static let realAudioReaction = Key<Bool>("realAudioReaction", default: true)
+    /// Custom glass that refracts what's behind the notch (needs Screen Recording permission)
+    static let realRefraction = Key<Bool>("realRefraction", default: true)
+    /// How strongly the custom glass bends the background, 0...1
+    static let refractionStrength = Key<Double>("refractionStrength", default: 0.7)
+    /// How frosted the custom glass is, 0...1
+    static let glassFrost = Key<Double>("glassFrost", default: 0.35)
     /// Split the open notch into glass tiles (like Control Center) instead of one panel
     static let glassTiles = Key<Bool>("glassTiles", default: true)
     /// Blend today's calendar event colours into the liquid glow
@@ -156,7 +166,7 @@ extension Defaults.Keys {
     static let sneakPeekStyles = Key<SneakPeekStyle>("sneakPeekStyles", default: .standard)
     static let waitInterval = Key<Double>("waitInterval", default: 3)
     static let showShuffleAndRepeat = Key<Bool>("showShuffleAndRepeat", default: false)
-    static let enableLyrics = Key<Bool>("enableLyrics", default: false)
+    static let enableLyrics = Key<Bool>("enableLyrics", default: true)
     static let musicControlSlots = Key<[MusicControlButton]>(
         "musicControlSlots",
         default: MusicControlButton.defaultLayout
