@@ -30,6 +30,7 @@ struct ContentView: View {
     @State private var gestureProgress: CGFloat = .zero
 
     @State private var haptics: Bool = false
+    @State private var lastHaptic: Date = .distantPast
 
     @Namespace var albumArtNamespace
 
@@ -517,6 +518,15 @@ struct ContentView: View {
         }
     }
 
+    /// One haptic click at most every 0.5 s, from any source.
+    private func fireHaptic() {
+        guard Defaults[.enableHaptics] else { return }
+        let now = Date()
+        guard now.timeIntervalSince(lastHaptic) > 0.5 else { return }
+        lastHaptic = now
+        haptics.toggle()
+    }
+
     private func doOpen() {
         withAnimation(NotchMotion.open) {
             vm.open()
@@ -530,12 +540,15 @@ struct ContentView: View {
         hoverTask?.cancel()
         
         if hovering {
+            let wasHovering = isHovering
             withAnimation(animationSpring) {
                 isHovering = true
             }
             
-            if vm.notchState == .closed && Defaults[.enableHaptics] {
-                haptics.toggle()
+            // Only on a real arrival: the pointer flickering in and out at the
+            // screen edge used to fire a burst of clicks.
+            if vm.notchState == .closed && !wasHovering {
+                fireHaptic()
             }
             
             guard vm.notchState == .closed,
@@ -587,9 +600,7 @@ struct ContentView: View {
         }
 
         if translation > Defaults[.gestureSensitivity] {
-            if Defaults[.enableHaptics] {
-                haptics.toggle()
-            }
+            fireHaptic()
             withAnimation(animationSpring) {
                 gestureProgress = .zero
             }
@@ -619,9 +630,7 @@ struct ContentView: View {
                 vm.close()
             }
 
-            if Defaults[.enableHaptics] {
-                haptics.toggle()
-            }
+            fireHaptic()
         }
     }
 }
