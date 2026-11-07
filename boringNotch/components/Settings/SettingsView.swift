@@ -1176,6 +1176,8 @@ struct Appearance: View {
     @Default(.albumGlow) var albumGlow
     @Default(.albumGlowIntensity) var albumGlowIntensity
     @Default(.albumGlowMotion) var albumGlowMotion
+    @Default(.albumGlowPulse) var albumGlowPulse
+    @Default(.glassTiles) var glassTiles
 
     let icons: [String] = ["logo2"]
     @State private var selectedIcon: String = "logo2"
@@ -1425,13 +1427,19 @@ struct Appearance: View {
 
             Section {
                 Toggle("Glass background when open", isOn: $glassBackground)
+                Picker("Glass layout", selection: $glassTiles) {
+                    Text("Tiles").tag(true)
+                    Text("Single panel").tag(false)
+                }
+                .pickerStyle(.segmented)
+                .disabled(!glassBackground)
                 Picker("Glass style", selection: $glassClear) {
                     Text("Standard").tag(false)
                     Text("Clear (dimmed)").tag(true)
                 }
                 .pickerStyle(.segmented)
                 .disabled(!glassBackground)
-                LabeledContent("Glass opacity") {
+                LabeledContent("Panel opacity") {
                     HStack {
                         Slider(value: $glassOpacity, in: 0.3...1)
                             .frame(width: 180)
@@ -1441,7 +1449,7 @@ struct Appearance: View {
                             .frame(width: 52, alignment: .trailing)
                     }
                 }
-                .disabled(!glassBackground)
+                .disabled(!glassBackground || glassTiles)
                 LabeledContent("Extra darkness") {
                     HStack {
                         Slider(value: $glassTint, in: 0...0.8)
@@ -1467,10 +1475,12 @@ struct Appearance: View {
                 .disabled(!albumGlow)
                 Toggle("Flowing glow", isOn: $albumGlowMotion)
                     .disabled(!albumGlow)
+                Toggle("Pulse while music plays", isOn: $albumGlowPulse)
+                    .disabled(!albumGlow || !albumGlowMotion)
             } header: {
                 Text("Glass")
             } footer: {
-                Text("Standard matches Control Center. Lower the opacity for a more see-through notch, and add darkness only if text gets hard to read.")
+                Text("Tiles works like Control Center: each tile's edge bends what's behind it, and the tiles react to the pointer. Single panel is one sheet of glass. Add darkness only if text gets hard to read.")
                     .foregroundStyle(.secondary)
                     .font(.caption)
             }

@@ -46,9 +46,7 @@ struct BoringHeader: View {
                             Button(action: {
                                 vm.toggleCameraPreview()
                             }) {
-                                Capsule()
-                                    .fill(Defaults[.glassBackground] ? Color.white.opacity(0.1) : Color.black)
-                                    .frame(width: 30, height: 30)
+                                HeaderButtonBackground()
                                     .overlay {
                                         Image(systemName: "web.camera")
                                             .foregroundColor(.white)
@@ -65,9 +63,7 @@ struct BoringHeader: View {
                                 }
                                 
                             }) {
-                                Capsule()
-                                    .fill(Defaults[.glassBackground] ? Color.white.opacity(0.1) : Color.black)
-                                    .frame(width: 30, height: 30)
+                                HeaderButtonBackground()
                                     .overlay {
                                         Image(systemName: "gear")
                                             .foregroundColor(.white)
