@@ -1564,6 +1564,9 @@ struct Advanced: View {
                 Defaults.Toggle(key: .cornerRadiusScaling) {
                     Text("Corner radius scaling")
                 }
+                Defaults.Toggle(key: .glassBackground) {
+                    Text("Glass background when open")
+                }
             } header: {
                 Text("Window Appearance")
             }

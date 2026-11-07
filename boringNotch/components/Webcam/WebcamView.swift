@@ -44,9 +44,21 @@ struct CameraPreviewView: View {
                     }
                 }
             }
+            // Double-click: open the mirror full screen. Declared before the
+            // single tap so SwiftUI can tell the two apart.
+            .onTapGesture(count: 2) {
+                guard webcamManager.authorizationStatus == .authorized else {
+                    handleCameraTap()
+                    return
+                }
+                let screen = NSApp.windows.first(where: { $0.isVisible && $0.level == .mainMenu + 3 })?.screen
+                FullscreenMirrorController.shared.show(on: screen)
+                vm.close()
+            }
             .onTapGesture {
                 handleCameraTap()
             }
+            .help("Click to start or stop the mirror. Double-click for full screen.")
             .onDisappear {
                 webcamManager.stopSession()
             }

@@ -193,8 +193,11 @@ class BoringViewModel: NSObject, ObservableObject {
         self.notchSize = openNotchSize
         self.notchState = .open
         
-        // Force music information update when notch is opened
-        MusicManager.shared.forceUpdate()
+        // Refresh music info once the open animation has mostly settled, so the
+        // resulting view updates don't land in the middle of it.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            MusicManager.shared.forceUpdate()
+        }
     }
 
     func close() {

@@ -37,8 +37,10 @@ struct ContentView: View {
 
     @Default(.showNotHumanFace) var showNotHumanFace
 
-    // Shared interactive spring for movement/resizing to avoid conflicting animations
+    // Shared interactive spring for hover/gesture feedback
     private let animationSpring = Animation.interactiveSpring(response: 0.38, dampingFraction: 0.8, blendDuration: 0)
+
+    @Default(.glassBackground) var glassBackground
 
     private let extendedHoverPadding: CGFloat = 30
     private let zeroHeightHoverPadding: CGFloat = 10
@@ -100,7 +102,14 @@ struct ContentView: View {
                         : cornerRadiusInsets.closed.bottom
                     )
                     .padding([.horizontal, .bottom], vm.notchState == .open ? 12 : 0)
-                    .background(.black)
+                    .background {
+                        NotchBackground(
+                            shape: currentNotchShape,
+                            isOpen: vm.notchState == .open,
+                            useGlass: glassBackground,
+                            topBandHeight: vm.effectiveClosedNotchHeight
+                        )
+                    }
                     .clipShape(currentNotchShape)
                     .overlay(alignment: .top) {
                         Rectangle()
@@ -109,7 +118,7 @@ struct ContentView: View {
                             .padding(.horizontal, topCornerRadius)
                     }
                     .shadow(
-                        color: ((vm.notchState == .open || isHovering) && Defaults[.enableShadow])
+                        color: ((vm.notchState == .open || isHovering) && Defaults[.enableShadow] && !glassBackground)
                             ? .black.opacity(0.7) : .clear, radius: Defaults[.cornerRadiusScaling] ? 6 : 4
                     )
                     .padding(
@@ -119,14 +128,10 @@ struct ContentView: View {
                 
                 mainLayout
                     .frame(height: vm.notchState == .open ? vm.notchSize.height : nil)
-                    .conditionalModifier(true) { view in
-                        let openAnimation = Animation.spring(response: 0.42, dampingFraction: 0.8, blendDuration: 0)
-                        let closeAnimation = Animation.spring(response: 0.45, dampingFraction: 1.0, blendDuration: 0)
-                        
-                        return view
-                            .animation(vm.notchState == .open ? openAnimation : closeAnimation, value: vm.notchState)
-                            .animation(.smooth, value: gestureProgress)
-                    }
+                    // One spring per direction, used everywhere the notch opens/closes,
+                    // so the shape, size and content never run on competing timings.
+                    .animation(vm.notchState == .open ? NotchMotion.open : NotchMotion.close, value: vm.notchState)
+                    .animation(.smooth, value: gestureProgress)
                     .contentShape(Rectangle())
                     .onHover { hovering in
                         handleHover(hovering)
@@ -351,10 +356,15 @@ struct ContentView: View {
                         ShelfView()
                     }
                 }
+                // Shape leads, content follows: fade/scale in slightly after the
+                // notch starts growing, and get out of the way quickly on close.
                 .transition(
-                    .scale(scale: 0.8, anchor: .top)
-                    .combined(with: .opacity)
-                    .animation(.smooth(duration: 0.35))
+                    .asymmetric(
+                        insertion: .scale(scale: 0.96, anchor: .top)
+                            .combined(with: .opacity)
+                            .animation(NotchMotion.contentIn),
+                        removal: .opacity.animation(NotchMotion.contentOut)
+                    )
                 )
                 .zIndex(1)
                 .allowsHitTesting(vm.notchState == .open)
@@ -503,7 +513,7 @@ struct ContentView: View {
     }
 
     private func doOpen() {
-        withAnimation(animationSpring) {
+        withAnimation(NotchMotion.open) {
             vm.open()
         }
     }
