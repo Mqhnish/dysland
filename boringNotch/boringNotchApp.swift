@@ -52,6 +52,21 @@ struct DynamicNotchApp: App {
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     var windows: [String: NSWindow] = [:] // UUID -> NSWindow
+    private var glassSpaceObserver: AnyCancellable?
+
+    /// Move notch windows in or out of the private space when glass is toggled.
+    @MainActor
+    private func updateNotchSpaceMembership(glass: Bool) {
+        let all = Array(windows.values) + [window].compactMap { $0 }
+        for w in Set(all.map { ObjectIdentifier($0) }).compactMap({ id in all.first { ObjectIdentifier($0) == id } }) {
+            if glass {
+                NotchSpaceManager.shared.notchSpace.windows.remove(w)
+            } else {
+                NotchSpaceManager.shared.notchSpace.windows.insert(w)
+            }
+            w.orderFrontRegardless()
+        }
+    }
     var viewModels: [String: BoringViewModel] = [:] // UUID -> BoringViewModel
     var window: NSWindow?
     let vm: BoringViewModel = .init()
@@ -250,7 +265,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
 
         window.orderFrontRegardless()
-        NotchSpaceManager.shared.notchSpace.windows.insert(window)
+        // The private max-level space keeps the notch above everything, but it's
+        // composited apart from the desktop, so glass inside it can't see what's
+        // behind and renders flat grey. With glass on, stay in the normal space
+        // (the window level is already above the menu bar).
+        if !Defaults[.glassBackground] {
+            NotchSpaceManager.shared.notchSpace.windows.insert(window)
+        }
 
         // Observe when the window's screen changes so we can update drag detectors
         windowScreenDidChangeObserver = NotificationCenter.default.addObserver(
@@ -280,6 +301,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+
+        glassSpaceObserver = Defaults.publisher(.glassBackground, options: [])
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] change in
+                MainActor.assumeIsolated {
+                    self?.updateNotchSpaceMembership(glass: change.newValue)
+                }
+            }
 
         NotificationCenter.default.addObserver(
             self,
