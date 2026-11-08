@@ -570,6 +570,24 @@ struct ContentView: View {
 
     // MARK: - Hover Management
 
+    /// Where the pointer really is, compared with the open notch's area.
+    private func pointerIsInsideOpenNotch() -> Bool {
+        guard vm.notchState == .open else { return false }
+        let mouse = NSEvent.mouseLocation
+        return NSApp.windows.contains { window in
+            guard window is BoringNotchSkyLightWindow, window.isVisible else { return false }
+            let width = vm.notchSize.width
+            let height = vm.notchSize.height
+            let area = NSRect(
+                x: window.frame.midX - width / 2,
+                y: window.frame.maxY - height,
+                width: width,
+                height: height
+            )
+            return area.contains(mouse)
+        }
+    }
+
     private func handleHover(_ hovering: Bool) {
         if coordinator.firstLaunch { return }
         hoverTask?.cancel()
@@ -604,8 +622,12 @@ struct ContentView: View {
             }
         } else {
             hoverTask = Task {
-                try? await Task.sleep(for: .milliseconds(100))
-                guard !Task.isCancelled else { return }
+                // Hover events flicker while the notch resizes under the pointer,
+                // so an "exit" only counts once the pointer has really left.
+                repeat {
+                    try? await Task.sleep(for: .milliseconds(100))
+                    guard !Task.isCancelled else { return }
+                } while pointerIsInsideOpenNotch()
                 
                 await MainActor.run {
                     withAnimation(animationSpring) {
