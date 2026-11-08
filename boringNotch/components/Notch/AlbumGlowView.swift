@@ -2,11 +2,10 @@
 //  AlbumGlowView.swift
 //  boringNotch
 //
-//  The liquid visualiser behind the notch content: glossy ferrofluid in the
-//  album art's colours (plus today's calendar colours), drawn by a GPU shader
-//  (LiquidShaders.metal → ferrofluid). Bass swells the blobs, highs grow
-//  spikes, beats kick them. Levels come from AudioReactor: the real system
-//  audio when permitted, otherwise a varied simulated pulse.
+//  The liquid visualiser behind the notch content: a ribbon of fine strings in
+//  the album art's colours (plus today's calendar colours), drawn by a GPU
+//  shader (LiquidShaders.metal → ferrofluid). Levels come from AudioReactor:
+//  the real system audio when permitted, otherwise a varied simulated pulse.
 //
 
 import AppKit
@@ -17,6 +16,10 @@ import SwiftUI
 struct AlbumGlowView: View {
     /// Only animate while the notch is open.
     let active: Bool
+    /// When drawing just one tile's slice of the ribbon: the tile's position
+    /// in the panel, and the panel's size. The slices line up into one ribbon.
+    var origin: CGPoint = .zero
+    var panelSize: CGSize? = nil
 
     @ObservedObject private var music = MusicManager.shared
     @ObservedObject private var calendar = CalendarManager.shared
@@ -42,10 +45,11 @@ struct AlbumGlowView: View {
         return result
     }
 
-    /// Album colours while music is active, plus calendar colours flowing in.
+    /// The last song's colours stay put while paused. Calendar colours blend in
+    /// during playback, and only take over when there's no album to show.
     private var colors: [Color] {
-        let album = music.isPlayerIdle ? [] : albumColors
-        return album + eventColors
+        if albumColors.isEmpty { return eventColors }
+        return music.isPlaying ? albumColors + eventColors : albumColors
     }
 
     /// Flattened RGBA floats for the shader (at least 1 colour).
@@ -65,7 +69,8 @@ struct AlbumGlowView: View {
                     let levels = AudioReactor.shared.sample(time: t, playing: pulse && music.isPlaying)
                     Rectangle().fill(
                         ShaderLibrary.ferrofluid(
-                            .float2(geo.size),
+                            .float2(origin),
+                            .float2(panelSize ?? geo.size),
                             .float(Float(motion ? t.truncatingRemainder(dividingBy: 10_000) : 0)),
                             .float4(levels.bands.x, levels.bands.y, levels.bands.z, levels.bands.w),
                             .float(levels.beat),
@@ -84,7 +89,9 @@ struct AlbumGlowView: View {
     }
 
     private func refresh(_ art: NSImage) {
-        guard art !== sourceArt else { return }
+        // The placeholder and app-icon "artwork" aren't album art: keep the
+        // colours of the last real cover instead of sampling those.
+        guard art !== sourceArt, art !== defaultImage, !music.usingAppIconForArtwork else { return }
         sourceArt = art
         Task.detached(priority: .utility) {
             let picked = AlbumGlowView.pickColors(from: art)

@@ -4,8 +4,8 @@
 //
 //  GPU shaders for the notch's liquid visuals.
 //
-//  ferrofluid: the music visualiser. A neat row of glossy liquid beads that
-//  swell with their frequency band and merge with their neighbours.
+//  ferrofluid: the music visualiser, a flowing ribbon of fine strings driven
+//  by the frequency bands, with ripples on the beat.
 //
 //  liquidGlass: refraction for the custom glass. Bends the captured backdrop
 //  at the edges of each glass tile, with slight chromatic dispersion, frost
@@ -18,13 +18,13 @@ using namespace metal;
 
 // MARK: - Liquid visualiser
 
-// A tidy row of liquid beads, one per lane, each breathing with its own
-// frequency band, so it reads like an equaliser made of liquid. Neighbours
-// bridge and merge when they swell together; one small droplet wanders along
-// the row and melts into whichever bead it reaches. Colour runs as a smooth
-// gradient through the palette from left to right (no muddy per-blob mixing).
+// A flowing ribbon of fine luminous strings. All the strings follow one shared
+// wave and fan out slightly from each other, so they read as a single piece of
+// silk. Height follows the music along the ribbon (bass in the middle, highs
+// towards the ends), beats send a ripple outward from the centre, and colour
+// runs through the album palette. Both ends taper and fade to nothing.
 
-constant int BEADS = 5;
+constant int STRINGS = 14;
 
 float3 paletteAt(float x, device const float *cols, int n) {
     if (n <= 1) return float3(cols[0], cols[1], cols[2]);
@@ -36,93 +36,70 @@ float3 paletteAt(float x, device const float *cols, int n) {
     return mix(a, b, t);
 }
 
-[[ stitchable ]] half4 ferrofluid(float2 pos,
-                                  float2 size,
+/// Band level along the ribbon: bass at the centre, highs at the ends.
+float bandAlong(float u, float4 bands) {
+    float a = min(abs(u) * 3.0, 2.999);
+    int i = int(floor(a));
+    float t = smoothstep(0.0, 1.0, a - float(i));
+    return mix(bands[i], bands[i + 1], t);
+}
+
+/// String height in points from the centre line. k is -1...1 across the ribbon.
+float ribbonHeight(float u, float k, float time, float4 bands, float beat, float ripple, float h) {
+    float x = u * 3.0;
+    float taper = 1.0 - smoothstep(0.55, 1.0, abs(u));
+    float amp = h * (0.07 + 0.34 * bandAlong(u, bands) + 0.04 * beat);
+
+    float wave = sin(x * 1.15 + time * 0.75 + k * 0.85) * 0.62
+               + sin(x * 2.3 - time * 1.05 + k * 1.5) * 0.28
+               + sin(x * 0.5 + time * 0.4) * 0.25;
+
+    // Smooth abs() so the ripple has no kink at the centre.
+    float rip = sin(sqrt(x * x + 0.25) * 6.0 - time * 6.0 + k * 0.6) * 0.3 * (0.3 + ripple) * beat;
+
+    float s = sin(x * 0.9 - time * 0.5);
+    float spread = h * 0.10 * k * (0.35 + 0.65 * s * s);
+
+    return (amp * (wave + rip) + spread) * taper;
+}
+
+[[ stitchable ]] half4 ferrofluid(float2 localPos,
+                                  float2 origin,     // where this view sits in the panel
+                                  float2 size,       // the whole panel
                                   float time,
                                   float4 bands,      // bass, low-mid, mid, high (0...1)
                                   float beat,        // 0...1 envelope
-                                  float spikiness,   // user setting, 0...1
+                                  float ripple,      // user setting: beat ripple strength
                                   device const float *cols, int colCount)
 {
     int nColors = max(colCount / 4, 1);
-    float lane = size.x / float(BEADS);
-    float midY = size.y * 0.56;
+    float2 pos = localPos + origin;
+    float midY = size.y * 0.55;
+    float u = pos.x / size.x * 2.0 - 1.0;
+    float du = 2.0 / size.x;
 
-    // Which band drives each bead: bass in the middle, highs at the edges.
-    float drive[BEADS] = { bands.w, bands.z, bands.x, bands.y, mix(bands.w, bands.z, 0.5) };
+    float fade = smoothstep(0.0, 0.28, 1.0 - abs(u));
+    if (fade <= 0.0) return half4(0.0);
 
-    float field = 0.0;
-    float2 grad = float2(0.0);
-    float2 domCenter = float2(0.0);
-    float domContrib = 0.0;
+    float3 light = float3(0.0);
+    for (int i = 0; i < STRINGS; i++) {
+        float k = float(i) / float(STRINGS - 1) * 2.0 - 1.0;
+        float y0 = ribbonHeight(u, k, time, bands, beat, ripple, size.y);
+        float y1 = ribbonHeight(u + du, k, time, bands, beat, ripple, size.y);
+        float slope = y1 - y0;
+        float d = abs(pos.y - (midY + y0)) / sqrt(1.0 + slope * slope);
+        if (d > 26.0) continue;
 
-    for (int i = 0; i < BEADS; i++) {
-        float fi = float(i);
-        // Stay near the lane centre; just a gentle sway and bob.
-        float cx = (fi + 0.5) * lane + lane * 0.16 * sin(time * (0.23 + 0.04 * fi) + fi * 1.9);
-        float cy = midY + size.y * 0.07 * sin(time * (0.31 + 0.05 * fi) + fi * 2.4)
-                 - beat * size.y * 0.05 * (i == 2 ? 1.0 : 0.4);
-        float breathe = 0.5 + 0.5 * sin(time * 0.6 + fi * 1.4);
-        float r = size.y * (0.105 + 0.018 * breathe + 0.13 * drive[i] + 0.035 * beat);
-
-        float2 d = pos - float2(cx, cy);
-        float d2 = dot(d, d) + 1.0;
-        float c = (r * r) / d2;
-        field += c;
-        grad += -2.0 * r * r * d / (d2 * d2);
-        if (c > domContrib) { domContrib = c; domCenter = float2(cx, cy); }
+        float3 c = paletteAt((0.5 + 0.5 * u) * 0.7 + (0.5 + 0.5 * k) * 0.3, cols, nColors);
+        float core = 1.0 - smoothstep(0.35, 1.5, d);
+        float glow = exp(-d / 4.5) * 0.10;
+        light += c * (core * 0.55 + glow) * (1.0 - 0.55 * abs(k));
     }
 
-    // The wandering droplet: glides slowly end to end along the row.
-    {
-        float u = 0.5 + 0.5 * sin(time * 0.11);
-        float cx = mix(lane * 0.3, size.x - lane * 0.3, u);
-        float cy = midY - size.y * 0.2 + size.y * 0.06 * sin(time * 0.9);
-        float r = size.y * (0.06 + 0.02 * bands.y);
-        float2 d = pos - float2(cx, cy);
-        float d2 = dot(d, d) + 1.0;
-        field += (r * r) / d2;
-        grad += -2.0 * r * r * d / (d2 * d2);
-    }
-
-    // Optional ferrofluid spikes: few, short, only on strong beats/highs.
-    if (spikiness > 0.01) {
-        float2 rel = pos - domCenter;
-        float theta = atan2(rel.y, rel.x);
-        float ridge = pow(abs(sin(theta * 6.0 + time * 0.5)), 16.0);
-        float amount = spikiness * (0.6 * bands.w + 0.8 * beat);
-        float near = smoothstep(0.45, 0.95, field) * (1.0 - smoothstep(1.0, 1.4, field));
-        field *= 1.0 + ridge * amount * near * 0.6;
-    }
-
-    // Crisp anti-aliased edge via distance-to-surface in pixels.
-    float gl = max(length(grad), 1e-4);
-    float edgePx = (field - 1.0) / gl;
-    float alpha = clamp(edgePx * 0.9 + 0.5, 0.0, 1.0);
-
-    float3 base = paletteAt(pos.x / size.x, cols, nColors);
-
-    // Smooth dome normal.
-    float k = size.y * 0.22;
-    float3 n = normalize(float3(-grad.x * k, -grad.y * k, 1.0));
-    float3 L = normalize(float3(-0.35, -0.75, 0.55));
-    float diff = clamp(dot(n, L), 0.0, 1.0);
-    float3 R = reflect(-L, n);
-    float spec = pow(max(R.z, 0.0), 42.0);
-    float rim = pow(1.0 - n.z, 3.0);
-
-    // Glossy but restrained: a vertical light falloff, a soft diffuse term,
-    // one clean highlight, and a thin luminous rim.
-    float3 color = base * (0.55 + 0.45 * diff);
-    color = mix(color, base * 0.55, clamp(n.y * 0.6, 0.0, 0.6));   // shade the underside
-    color += mix(base, float3(1.0), 0.6) * rim * 0.45;
-    color += float3(1.0) * spec * (0.55 + 0.35 * beat);
-
-    // Faint glow just outside the surface.
-    float halo = smoothstep(0.35, 1.0, field) * (1.0 - alpha) * (0.18 + 0.2 * bands.x);
-    float3 outColor = color * alpha + base * halo;
-    float outAlpha = alpha * 0.92 + halo;
-    return half4(half3(outColor), half(clamp(outAlpha, 0.0, 1.0)));
+    // Filmic roll-off keeps overlaps colourful instead of blowing out to white.
+    float3 rgb = (1.0 - exp(-light * fade * 2.4));
+    float a = clamp(max(max(rgb.r, rgb.g), rgb.b), 0.0, 1.0);
+    return half4(half3(rgb), half(a));
 }
 
 // MARK: - Liquid glass refraction

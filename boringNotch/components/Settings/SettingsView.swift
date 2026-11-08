@@ -1485,7 +1485,7 @@ struct Appearance: View {
                     .disabled(!albumGlow || !albumGlowMotion)
                 Toggle("Blend calendar event colours", isOn: $glowCalendarColors)
                     .disabled(!albumGlow)
-                LabeledContent("Ferrofluid spikes") {
+                LabeledContent("Beat ripples") {
                     HStack {
                         Slider(value: $visualizerSpikiness, in: 0...1)
                             .frame(width: 180)

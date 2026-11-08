@@ -20,6 +20,7 @@ let tabs = [
 ]
 
 struct TabSelectionView: View {
+    @EnvironmentObject var vm: BoringViewModel
     @ObservedObject var coordinator = BoringViewCoordinator.shared
     @Namespace var animation
     var body: some View {
@@ -28,6 +29,9 @@ struct TabSelectionView: View {
                     TabButton(label: tab.label, icon: tab.icon, selected: coordinator.currentView == tab.view) {
                         withAnimation(.smooth) {
                             coordinator.currentView = tab.view
+                            // Tabs always land on the tab's main view, leaving
+                            // the timer, library, lyrics or search panel.
+                            vm.homePanel = .home
                         }
                     }
                     .frame(height: 26)

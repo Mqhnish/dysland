@@ -112,7 +112,7 @@ extension Defaults.Keys {
     /// How strongly the glass is drawn, 0.3...1. Lower = more see-through.
     static let glassOpacity = Key<Double>("glassOpacity", default: 1)
     /// Spike strength on the ferrofluid visualiser, 0...1
-    static let visualizerSpikiness = Key<Double>("visualizerSpikinessV2", default: 0.15)
+    static let visualizerSpikiness = Key<Double>("visualizerRipple", default: 0.5)
     /// React to the real system audio (needs System Audio Recording permission)
     static let realAudioReaction = Key<Bool>("realAudioReaction", default: true)
     /// Custom glass that refracts what's behind the notch (needs Screen Recording permission)
@@ -130,7 +130,7 @@ extension Defaults.Keys {
     /// Let the album art's colours glow through the notch background
     static let albumGlow = Key<Bool>("albumGlow", default: true)
     /// Strength of the album glow, 0...1
-    static let albumGlowIntensity = Key<Double>("albumGlowIntensity", default: 0.55)
+    static let albumGlowIntensity = Key<Double>("albumGlowIntensityV2", default: 0.85)
     /// Slowly drift the album glow
     static let albumGlowMotion = Key<Bool>("albumGlowMotion", default: true)
     /// Multiplier on open/close duration (lower = faster)

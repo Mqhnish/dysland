@@ -62,7 +62,7 @@ struct NotchBackground<S: Shape>: View {
         let hasEvents = glowCalendarColors
             && calendar.calendarAuthorizationStatus == .fullAccess
             && !EventListView.filteredEvents(events: calendar.events).isEmpty
-        return !music.isPlayerIdle || hasEvents
+        return !music.isPlayerIdle || music.albumArt !== defaultImage || hasEvents
     }
     private var tilesMode: Bool { useGlass && glassTiles && GlassSupport.available }
 
@@ -122,10 +122,6 @@ struct NotchBackground<S: Shape>: View {
                         .offset(x: -origin.x, y: -origin.y)
                 }
                 Rectangle().fill(.black.opacity(0.06 + tint))
-                if showAlbumGlow {
-                    AlbumGlowView(active: isOpen)
-                        .opacity(min(max(albumGlowIntensity, 0), 1))
-                }
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
             .clipped()
@@ -138,6 +134,13 @@ struct NotchBackground<S: Shape>: View {
                 ),
                 maxSampleOffset: CGSize(width: 40, height: 40)
             )
+            // Above the frosted layer: fine strings would blur away under it.
+            .overlay {
+                if showAlbumGlow {
+                    AlbumGlowView(active: isOpen)
+                        .opacity(min(max(albumGlowIntensity, 0), 1))
+                }
+            }
         }
     }
 
@@ -153,8 +156,8 @@ struct NotchBackground<S: Shape>: View {
                 Rectangle().fill(.black)
             }
 
-            // Album colours flowing like liquid. In tiles mode they sit behind
-            // the glass tiles, so the tile edges refract them.
+            // The ribbon. In tiles mode this shows in the gaps; each tile draws
+            // its own sharp slice above its glass (see TileRibbon).
             if showAlbumGlow {
                 AlbumGlowView(active: isOpen)
                     .opacity(isOpen ? min(max(albumGlowIntensity, 0), 1) : 0)
@@ -215,6 +218,29 @@ private struct TileFrameReporter: View {
     }
 }
 
+/// The tile's slice of the visualiser ribbon, drawn above Apple's glass (which
+/// would blur fine strings away) and below the tile's content.
+private struct TileRibbon: View {
+    let cornerRadius: CGFloat
+    @Default(.albumGlow) private var albumGlow
+    @Default(.albumGlowIntensity) private var intensity
+
+    var body: some View {
+        if albumGlow {
+            GeometryReader { g in
+                AlbumGlowView(
+                    active: true,
+                    origin: g.frame(in: .named("notchPanel")).origin,
+                    panelSize: openNotchSize
+                )
+                .opacity(min(max(intensity, 0), 1))
+            }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .allowsHitTesting(false)
+        }
+    }
+}
+
 struct GlassTile: ViewModifier {
     var cornerRadius: CGFloat = 18
     var padding: CGFloat = 8
@@ -240,6 +266,7 @@ struct GlassTile: ViewModifier {
                                 cornerRadius: cornerRadius,
                                 interactive: true
                             )
+                            TileRibbon(cornerRadius: cornerRadius)
                         }
                         TileFrameReporter(radius: cornerRadius)
                     }
