@@ -21,6 +21,9 @@ struct BoringHeader: View {
                 } else if vm.notchState == .open {
                     EmptyView()
                 }
+                if vm.notchState == .open {
+                    IslandHeaderButtons()
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .opacity(vm.notchState == .closed ? 0 : 1)

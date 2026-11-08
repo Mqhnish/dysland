@@ -109,6 +109,8 @@ class BoringNotchSkyLightWindow: NSPanel {
     
     private var observers: Set<AnyCancellable> = []
     
-    override var canBecomeKey: Bool { false }
+    /// True only while the island search is open, so it can take typing.
+    static var allowsKeyFocus = false
+    override var canBecomeKey: Bool { Self.allowsKeyFocus }
     override var canBecomeMain: Bool { false }
 }

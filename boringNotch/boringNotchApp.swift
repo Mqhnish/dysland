@@ -301,6 +301,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        IslandCenter.shared.start()
 
         glassSpaceObserver = Defaults.publisher(.glassBackground, options: [])
             .receive(on: DispatchQueue.main)
@@ -392,6 +393,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     duration: 3.0
                 )
             }
+        }
+
+        KeyboardShortcuts.onKeyDown(for: .islandSearch) { [weak self] in
+            guard let self, Defaults[.islandSearch] else { return }
+            let mouse = NSEvent.mouseLocation
+            var viewModel = self.vm
+            if Defaults[.showOnAllDisplays] {
+                for screen in NSScreen.screens where screen.frame.contains(mouse) {
+                    if let uuid = screen.displayUUID, let m = self.viewModels[uuid] { viewModel = m }
+                }
+            }
+            self.closeNotchTask?.cancel()
+            if viewModel.notchState == .open && viewModel.homePanel == .search {
+                viewModel.close()
+                return
+            }
+            self.coordinator.currentView = .home
+            viewModel.homePanel = .search
+            withAnimation(.spring(duration: 0.5, bounce: 0.3)) { viewModel.open() }
         }
 
         KeyboardShortcuts.onKeyDown(for: .toggleNotchOpen) { [weak self] in

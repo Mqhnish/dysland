@@ -1564,6 +1564,31 @@ struct Appearance: View {
             } header: {
                 Text("Motion")
             }
+
+            Section {
+                Defaults.Toggle(key: .islandAlerts) {
+                    Text("Pop-ups in the closed notch")
+                }
+                Defaults.Toggle(key: .islandAudioSwitchAlerts) {
+                    Text("Show when audio switches device")
+                }
+                Defaults.Toggle(key: .islandFocusAlerts) {
+                    Text("Show when Focus turns on or off")
+                }
+                Defaults.Toggle(key: .islandSplitPills) {
+                    Text("Split a timer into its own pill while music plays")
+                }
+                Defaults.Toggle(key: .islandSearch) {
+                    Text("Search from the notch")
+                }
+                KeyboardShortcuts.Recorder("Search shortcut:", name: .islandSearch)
+            } header: {
+                Text("Dynamic Island")
+            } footer: {
+                Text("Pop-ups drop out of the notch for AirPods, audio devices, Focus, low battery and finished timers. Focus pop-ups only work if macOS lets Boring Notch see your Focus status.")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+            }
         }
         .accentColor(.effectiveAccent)
         .navigationTitle("Appearance")

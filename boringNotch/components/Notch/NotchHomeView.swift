@@ -417,6 +417,12 @@ struct NotchHomeView: View {
                 case .lyrics:
                     ExpandedLyricsView()
                         .transition(.opacity.combined(with: .scale(0.98)))
+                case .timer:
+                    TimerPanelView()
+                        .transition(.opacity.combined(with: .scale(0.98)))
+                case .search:
+                    IslandSearchView()
+                        .transition(.opacity.combined(with: .scale(0.96, anchor: .top)))
                 }
             }
         }

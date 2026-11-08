@@ -167,6 +167,13 @@ extension Defaults.Keys {
     static let waitInterval = Key<Double>("waitInterval", default: 3)
     static let showShuffleAndRepeat = Key<Bool>("showShuffleAndRepeat", default: false)
     static let enableLyrics = Key<Bool>("enableLyrics", default: true)
+
+    // Dynamic Island features
+    static let islandAlerts = Key<Bool>("islandAlerts", default: true)
+    static let islandAudioSwitchAlerts = Key<Bool>("islandAudioSwitchAlerts", default: true)
+    static let islandFocusAlerts = Key<Bool>("islandFocusAlerts", default: true)
+    static let islandSplitPills = Key<Bool>("islandSplitPills", default: true)
+    static let islandSearch = Key<Bool>("islandSearch", default: true)
     static let musicControlSlots = Key<[MusicControlButton]>(
         "musicControlSlots",
         default: MusicControlButton.defaultLayout

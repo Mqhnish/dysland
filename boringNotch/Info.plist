@@ -7,6 +7,10 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSFocusStatusUsageDescription</key>
+	<string>Shows a short pop-up in the notch when a Focus mode turns on or off.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Shows your AirPods' battery level when they connect.</string>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>Boring Notch listens to the music playing on your Mac so the liquid visualiser can react to it. Audio is analysed on-device and never recorded or sent anywhere.</string>
 	<key>SUEnableDownloaderService</key>

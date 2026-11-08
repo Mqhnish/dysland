@@ -23,6 +23,7 @@ struct ContentView: View {
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
     @ObservedObject var brightnessManager = BrightnessManager.shared
     @ObservedObject var volumeManager = VolumeManager.shared
+    @ObservedObject var island = IslandCenter.shared
     @State private var hoverTask: Task<Void, Never>?
     @State private var isHovering: Bool = false
     @State private var anyDropDebounceTask: Task<Void, Never>?
@@ -83,6 +84,22 @@ struct ContentView: View {
         return chinWidth
     }
 
+    /// Music is showing in the closed notch and a timer is running too.
+    private var showSplitPill: Bool {
+        vm.notchState == .closed && island.timer != nil && island.alert == nil
+            && Defaults[.islandSplitPills] && !vm.hideOnClosed
+            && !coordinator.sneakPeek.show
+            && (!coordinator.expandingView.show || coordinator.expandingView.type == .music)
+            && (musicManager.isPlaying || !musicManager.isPlayerIdle)
+            && coordinator.musicLiveActivityEnabled
+    }
+
+    private func openPanel(_ panel: HomePanel) {
+        coordinator.currentView = .home
+        vm.homePanel = panel
+        doOpen()
+    }
+
     var body: some View {
         // Calculate scale based on gesture progress only
         let gestureScale: CGFloat = {
@@ -113,6 +130,16 @@ struct ContentView: View {
                         )
                     }
                     .clipShape(currentNotchShape)
+                    // A second activity splits off into its own pill beside the notch.
+                    .overlay(alignment: .topTrailing) {
+                        if showSplitPill, let timer = island.timer {
+                            TimerSplitPill(timer: timer, height: max(vm.effectiveClosedNotchHeight, 24))
+                                .alignmentGuide(.trailing) { d in d[.leading] - 6 }
+                                .onTapGesture { openPanel(.timer) }
+                                .transition(.scale(scale: 0.3, anchor: .leading).combined(with: .opacity))
+                        }
+                    }
+                    .animation(.spring(duration: 0.5, bounce: 0.3), value: showSplitPill)
                     .overlay(alignment: .top) {
                         Rectangle()
                             .fill(.black)
@@ -270,7 +297,10 @@ struct ContentView: View {
                     .padding(.top, 40)
                     Spacer()
                 } else {
-                    if coordinator.expandingView.type == .battery && coordinator.expandingView.show
+                    if vm.notchState == .closed, let alert = island.alert {
+                        IslandAlertView(alert: alert, notchHeight: vm.effectiveClosedNotchHeight)
+                            .onTapGesture { island.dismissAlert() }
+                    } else if coordinator.expandingView.type == .battery && coordinator.expandingView.show
                         && vm.notchState == .closed && Defaults[.showPowerStatusNotifications]
                     {
                         HStack(spacing: 0) {
@@ -303,6 +333,9 @@ struct ContentView: View {
                       } else if (!coordinator.expandingView.show || coordinator.expandingView.type == .music) && vm.notchState == .closed && (musicManager.isPlaying || !musicManager.isPlayerIdle) && coordinator.musicLiveActivityEnabled && !vm.hideOnClosed {
                           MusicLiveActivity()
                               .frame(alignment: .center)
+                      } else if vm.notchState == .closed && island.timer != nil && !vm.hideOnClosed {
+                          TimerLiveActivity(notchWidth: vm.closedNotchSize.width, notchHeight: vm.effectiveClosedNotchHeight)
+                              .transition(.opacity)
                       } else if !coordinator.expandingView.show && vm.notchState == .closed && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace] && !vm.hideOnClosed  {
                           BoringFaceAnimation()
                        } else if vm.notchState == .open {
@@ -579,7 +612,7 @@ struct ContentView: View {
                         self.isHovering = false
                     }
                     
-                    if self.vm.notchState == .open && !self.vm.isBatteryPopoverActive && !SharingStateManager.shared.preventNotchClose {
+                    if self.vm.notchState == .open && self.vm.homePanel != .search && !self.vm.isBatteryPopoverActive && !SharingStateManager.shared.preventNotchClose {
                         self.vm.close()
                     }
                 }

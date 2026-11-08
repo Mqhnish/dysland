@@ -235,5 +235,5 @@ class BoringViewModel: NSObject, ObservableObject {
 }
 
 enum HomePanel: Equatable {
-    case home, library, lyrics
+    case home, library, lyrics, timer, search
 }
