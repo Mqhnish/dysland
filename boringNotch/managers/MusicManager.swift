@@ -488,6 +488,17 @@ class MusicManager: ObservableObject {
         return result.sorted { $0.0 < $1.0 }
     }
 
+    /// Index of the synced line playing at `elapsed`, or nil before the first line.
+    func lyricIndex(at elapsed: Double) -> Int? {
+        guard !syncedLyrics.isEmpty, elapsed >= syncedLyrics[0].time else { return nil }
+        var low = 0, high = syncedLyrics.count - 1, idx = 0
+        while low <= high {
+            let mid = (low + high) / 2
+            if syncedLyrics[mid].time <= elapsed { idx = mid; low = mid + 1 } else { high = mid - 1 }
+        }
+        return idx
+    }
+
     func lyricLine(at elapsed: Double) -> String {
         guard !syncedLyrics.isEmpty else { return currentLyrics }
         // Binary search for last line with time <= elapsed

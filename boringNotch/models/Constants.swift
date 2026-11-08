@@ -112,7 +112,7 @@ extension Defaults.Keys {
     /// How strongly the glass is drawn, 0.3...1. Lower = more see-through.
     static let glassOpacity = Key<Double>("glassOpacity", default: 1)
     /// Spike strength on the ferrofluid visualiser, 0...1
-    static let visualizerSpikiness = Key<Double>("visualizerSpikiness", default: 0.6)
+    static let visualizerSpikiness = Key<Double>("visualizerSpikinessV2", default: 0.15)
     /// React to the real system audio (needs System Audio Recording permission)
     static let realAudioReaction = Key<Bool>("realAudioReaction", default: true)
     /// Custom glass that refracts what's behind the notch (needs Screen Recording permission)

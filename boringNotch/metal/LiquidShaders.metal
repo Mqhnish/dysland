@@ -4,11 +4,8 @@
 //
 //  GPU shaders for the notch's liquid visuals.
 //
-//  ferrofluid: the music visualiser. A metaball field of 7 blobs, each on its
-//  own lane across the panel (so they meet and split instead of clumping),
-//  shaded like glossy ferrofluid: dome normals from the field gradient, a
-//  sharp specular highlight, a coloured reflective rim, a soft halo, and
-//  spikes that grow out of the surface with the high frequencies / beats.
+//  ferrofluid: the music visualiser. A neat row of glossy liquid beads that
+//  swell with their frequency band and merge with their neighbours.
 //
 //  liquidGlass: refraction for the custom glass. Bends the captured backdrop
 //  at the edges of each glass tile, with slight chromatic dispersion, frost
@@ -19,9 +16,25 @@
 #include <SwiftUI/SwiftUI_Metal.h>
 using namespace metal;
 
-// MARK: - Ferrofluid visualiser
+// MARK: - Liquid visualiser
 
-constant int BLOBS = 7;
+// A tidy row of liquid beads, one per lane, each breathing with its own
+// frequency band, so it reads like an equaliser made of liquid. Neighbours
+// bridge and merge when they swell together; one small droplet wanders along
+// the row and melts into whichever bead it reaches. Colour runs as a smooth
+// gradient through the palette from left to right (no muddy per-blob mixing).
+
+constant int BEADS = 5;
+
+float3 paletteAt(float x, device const float *cols, int n) {
+    if (n <= 1) return float3(cols[0], cols[1], cols[2]);
+    float f = clamp(x, 0.0, 1.0) * float(n - 1);
+    int i = min(int(floor(f)), n - 2);
+    float t = smoothstep(0.0, 1.0, f - float(i));
+    float3 a = float3(cols[i * 4 + 0], cols[i * 4 + 1], cols[i * 4 + 2]);
+    float3 b = float3(cols[(i + 1) * 4 + 0], cols[(i + 1) * 4 + 1], cols[(i + 1) * 4 + 2]);
+    return mix(a, b, t);
+}
 
 [[ stitchable ]] half4 ferrofluid(float2 pos,
                                   float2 size,
@@ -32,86 +45,83 @@ constant int BLOBS = 7;
                                   device const float *cols, int colCount)
 {
     int nColors = max(colCount / 4, 1);
+    float lane = size.x / float(BEADS);
+    float midY = size.y * 0.56;
+
+    // Which band drives each bead: bass in the middle, highs at the edges.
+    float drive[BEADS] = { bands.w, bands.z, bands.x, bands.y, mix(bands.w, bands.z, 0.5) };
+
     float field = 0.0;
     float2 grad = float2(0.0);
-    float3 colorSum = float3(0.0);
-    float weightSum = 0.0;
-    float best = 0.0;
-    float2 bestCenter = float2(0.0);
-    float bestIndex = 0.0;
+    float2 domCenter = float2(0.0);
+    float domContrib = 0.0;
 
-    float lane = size.x / float(BLOBS);
-
-    for (int i = 0; i < BLOBS; i++) {
+    for (int i = 0; i < BEADS; i++) {
         float fi = float(i);
-        // Own lane, wide swing into the neighbours' lanes, plus a slower drift.
-        float cx = (fi + 0.5) * lane
-                 + lane * 0.95 * sin(time * (0.21 + 0.06 * fi) + fi * 1.7)
-                 + lane * 0.35 * sin(time * 0.57 + fi * 2.3);
-        float cy = size.y * (0.52 + 0.27 * sin(time * (0.29 + 0.05 * fi) + fi * 2.9));
-        // Beat kick: a quick hop away from the centre line.
-        cy += (fmod(fi, 2.0) < 1.0 ? -1.0 : 1.0) * beat * size.y * 0.06;
-
-        float band = bands[i % 4];
-        float r = size.y * (0.15 + 0.035 * sin(time * 0.7 + fi * 1.3))
-                * (1.0 + 0.65 * band + 0.3 * beat);
+        // Stay near the lane centre; just a gentle sway and bob.
+        float cx = (fi + 0.5) * lane + lane * 0.16 * sin(time * (0.23 + 0.04 * fi) + fi * 1.9);
+        float cy = midY + size.y * 0.07 * sin(time * (0.31 + 0.05 * fi) + fi * 2.4)
+                 - beat * size.y * 0.05 * (i == 2 ? 1.0 : 0.4);
+        float breathe = 0.5 + 0.5 * sin(time * 0.6 + fi * 1.4);
+        float r = size.y * (0.105 + 0.018 * breathe + 0.13 * drive[i] + 0.035 * beat);
 
         float2 d = pos - float2(cx, cy);
         float d2 = dot(d, d) + 1.0;
-        float contrib = (r * r) / d2;
-        field += contrib;
+        float c = (r * r) / d2;
+        field += c;
         grad += -2.0 * r * r * d / (d2 * d2);
-
-        int ci = i % nColors;
-        float3 c = float3(cols[ci * 4 + 0], cols[ci * 4 + 1], cols[ci * 4 + 2]);
-        colorSum += c * contrib * contrib;
-        weightSum += contrib * contrib;
-
-        if (contrib > best) { best = contrib; bestCenter = float2(cx, cy); bestIndex = fi; }
+        if (c > domContrib) { domContrib = c; domCenter = float2(cx, cy); }
     }
 
-    // Ferrofluid spikes: radial ridges around the dominant blob, only near
-    // the surface, growing with the highs and the beat.
-    float2 rel = pos - bestCenter;
-    float theta = atan2(rel.y, rel.x);
-    float ridge = pow(abs(sin(theta * 7.0 + time * 0.9 + bestIndex * 1.3)), 12.0) * 0.65
-                + pow(abs(sin(theta * 13.0 - time * 1.3 + bestIndex)), 20.0) * 0.35;
-    float spikeAmount = spikiness * (0.12 + 0.9 * bands.w + 0.9 * beat);
-    float nearSurface = smoothstep(0.3, 0.9, field) * (1.0 - smoothstep(1.05, 1.7, field));
-    float f = field * (1.0 + ridge * spikeAmount * nearSurface);
+    // The wandering droplet: glides slowly end to end along the row.
+    {
+        float u = 0.5 + 0.5 * sin(time * 0.11);
+        float cx = mix(lane * 0.3, size.x - lane * 0.3, u);
+        float cy = midY - size.y * 0.2 + size.y * 0.06 * sin(time * 0.9);
+        float r = size.y * (0.06 + 0.02 * bands.y);
+        float2 d = pos - float2(cx, cy);
+        float d2 = dot(d, d) + 1.0;
+        field += (r * r) / d2;
+        grad += -2.0 * r * r * d / (d2 * d2);
+    }
 
-    // Anti-aliased edge: distance to the surface in pixels via the gradient.
+    // Optional ferrofluid spikes: few, short, only on strong beats/highs.
+    if (spikiness > 0.01) {
+        float2 rel = pos - domCenter;
+        float theta = atan2(rel.y, rel.x);
+        float ridge = pow(abs(sin(theta * 6.0 + time * 0.5)), 16.0);
+        float amount = spikiness * (0.6 * bands.w + 0.8 * beat);
+        float near = smoothstep(0.45, 0.95, field) * (1.0 - smoothstep(1.0, 1.4, field));
+        field *= 1.0 + ridge * amount * near * 0.6;
+    }
+
+    // Crisp anti-aliased edge via distance-to-surface in pixels.
     float gl = max(length(grad), 1e-4);
-    float edgePx = (f - 1.0) / gl;
-    float alpha = clamp(edgePx + 0.5, 0.0, 1.0);
+    float edgePx = (field - 1.0) / gl;
+    float alpha = clamp(edgePx * 0.9 + 0.5, 0.0, 1.0);
 
-    float3 base = weightSum > 0.0 ? colorSum / weightSum : float3(0.5);
+    float3 base = paletteAt(pos.x / size.x, cols, nColors);
 
-    // Dome normal: steep at the rim, flat on top.
-    float k = size.y * 0.32;
+    // Smooth dome normal.
+    float k = size.y * 0.22;
     float3 n = normalize(float3(-grad.x * k, -grad.y * k, 1.0));
-    float3 L = normalize(float3(-0.45, -0.7, 0.6));       // light from top-left
-    float diff = max(dot(n, L), 0.0);
+    float3 L = normalize(float3(-0.35, -0.75, 0.55));
+    float diff = clamp(dot(n, L), 0.0, 1.0);
     float3 R = reflect(-L, n);
-    float spec = pow(max(R.z, 0.0), 60.0);
-    float specSoft = pow(max(R.z, 0.0), 10.0);
-    float fresnel = pow(1.0 - n.z, 2.2);
+    float spec = pow(max(R.z, 0.0), 42.0);
+    float rim = pow(1.0 - n.z, 3.0);
 
-    // Fake environment: brighter tint of the colour from above, dark below.
-    float3 envTop = mix(base, float3(1.0), 0.45);
-    float3 envBottom = base * 0.18;
-    float3 env = mix(envBottom, envTop, clamp(0.5 - n.y * 0.6, 0.0, 1.0));
+    // Glossy but restrained: a vertical light falloff, a soft diffuse term,
+    // one clean highlight, and a thin luminous rim.
+    float3 color = base * (0.55 + 0.45 * diff);
+    color = mix(color, base * 0.55, clamp(n.y * 0.6, 0.0, 0.6));   // shade the underside
+    color += mix(base, float3(1.0), 0.6) * rim * 0.45;
+    color += float3(1.0) * spec * (0.55 + 0.35 * beat);
 
-    float3 color = base * 0.28
-                 + base * diff * 0.42
-                 + env * fresnel * 0.75
-                 + float3(1.0) * spec * (0.85 + 0.5 * beat)
-                 + base * specSoft * 0.25;
-
-    // Soft luminous halo around the liquid.
-    float halo = smoothstep(0.22, 1.0, field) * (1.0 - alpha) * (0.28 + 0.25 * bands.x);
+    // Faint glow just outside the surface.
+    float halo = smoothstep(0.35, 1.0, field) * (1.0 - alpha) * (0.18 + 0.2 * bands.x);
     float3 outColor = color * alpha + base * halo;
-    float outAlpha = alpha + halo;
+    float outAlpha = alpha * 0.92 + halo;
     return half4(half3(outColor), half(clamp(outAlpha, 0.0, 1.0)));
 }
 

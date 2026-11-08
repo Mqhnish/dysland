@@ -133,7 +133,12 @@ struct MusicControlsView: View {
     private var songInfoAndSlider: some View {
         GeometryReader { geo in
             VStack(alignment: .leading, spacing: 4) {
-                songInfo(width: geo.size.width)
+                ZStack(alignment: .topTrailing) {
+                    songInfo(width: max(geo.size.width - 52, 40))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    MusicPanelButtons()
+                        .offset(y: -2)
+                }
                 musicSlider
             }
         }
@@ -157,37 +162,8 @@ struct MusicControlsView: View {
             )
             .fontWeight(.medium)
             if Defaults[.enableLyrics] {
-                TimelineView(.animation(minimumInterval: 0.25)) { timeline in
-                    let currentElapsed: Double = {
-                        guard musicManager.isPlaying else { return musicManager.elapsedTime }
-                        let delta = timeline.date.timeIntervalSince(musicManager.timestampDate)
-                        let progressed = musicManager.elapsedTime + (delta * musicManager.playbackRate)
-                        return min(max(progressed, 0), musicManager.songDuration)
-                    }()
-                    let line: String = {
-                        if musicManager.isFetchingLyrics { return "Loading lyrics…" }
-                        if !musicManager.syncedLyrics.isEmpty {
-                            return musicManager.lyricLine(at: currentElapsed)
-                        }
-                        let trimmed = musicManager.currentLyrics.trimmingCharacters(in: .whitespacesAndNewlines)
-                        return trimmed.isEmpty ? "No lyrics found" : trimmed.replacingOccurrences(of: "\n", with: " ")
-                    }()
-                    let isPersian = line.unicodeScalars.contains { scalar in
-                        let v = scalar.value
-                        return v >= 0x0600 && v <= 0x06FF
-                    }
-                    MarqueeText(
-                        .constant(line),
-                        font: .subheadline,
-                        nsFont: .subheadline,
-                        textColor: musicManager.isFetchingLyrics ? .gray.opacity(0.7) : .gray,
-                        frameWidth: width
-                    )
-                    .font(isPersian ? .custom("Vazirmatn-Regular", size: NSFont.preferredFont(forTextStyle: .subheadline).pointSize) : .subheadline)
-                    .lineLimit(1)
-                    .opacity(musicManager.isPlaying ? 1 : 0)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                }
+                CompactLyricLine(width: width)
+                    .padding(.top, 2)
             }
         }
     }
@@ -431,7 +407,17 @@ struct NotchHomeView: View {
     var body: some View {
         Group {
             if !coordinator.firstLaunch {
-                mainContent
+                switch vm.homePanel {
+                case .home:
+                    mainContent
+                        .transition(.opacity.combined(with: .scale(0.98)))
+                case .library:
+                    MusicLibraryView()
+                        .transition(.opacity.combined(with: .scale(0.98)))
+                case .lyrics:
+                    ExpandedLyricsView()
+                        .transition(.opacity.combined(with: .scale(0.98)))
+                }
             }
         }
         // simplified: use a straightforward opacity transition

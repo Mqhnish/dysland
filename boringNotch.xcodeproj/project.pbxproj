@@ -12,6 +12,8 @@
 		AA00000000000000000000D2 /* LiquidShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000000D1 /* LiquidShaders.metal */; };
 		AA00000000000000000000C2 /* AlbumGlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000000C1 /* AlbumGlowView.swift */; };
 		AA00000000000000000000B2 /* FullscreenMirror.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000000B1 /* FullscreenMirror.swift */; };
+		BB00000000000000000000A2 /* MusicLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000000000000A1 /* MusicLibraryView.swift */; };
+		BB00000000000000000000A4 /* LyricsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000000000000A3 /* LyricsViews.swift */; };
 		AA00000000000000000000A2 /* NotchBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000000A1 /* NotchBackground.swift */; };
 		1100290C2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1100290B2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift */; };
 		110029272E84FD4C00035A57 /* TemporaryFileStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110029262E84FD4C00035A57 /* TemporaryFileStorageService.swift */; };
@@ -192,6 +194,8 @@
 		AA00000000000000000000D1 /* LiquidShaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = "metal/LiquidShaders.metal"; sourceTree = "<group>"; };
 		AA00000000000000000000C1 /* AlbumGlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumGlowView.swift; sourceTree = "<group>"; };
 		AA00000000000000000000B1 /* FullscreenMirror.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullscreenMirror.swift; sourceTree = "<group>"; };
+		BB00000000000000000000A1 /* MusicLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicLibraryView.swift; sourceTree = "<group>"; };
+		BB00000000000000000000A3 /* LyricsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsViews.swift; sourceTree = "<group>"; };
 		AA00000000000000000000A1 /* NotchBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchBackground.swift; sourceTree = "<group>"; };
 		1100290B2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSItemProvider+LoadHelpers.swift"; sourceTree = "<group>"; };
 		110029262E84FD4C00035A57 /* TemporaryFileStorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemporaryFileStorageService.swift; sourceTree = "<group>"; };
@@ -724,6 +728,8 @@
 				1160F8D72DD98230006FBB94 /* NotchShape.swift */,
 				AA00000000000000000000C1 /* AlbumGlowView.swift */,
 				AA00000000000000000000A1 /* NotchBackground.swift */,
+				BB00000000000000000000A3 /* LyricsViews.swift */,
+				BB00000000000000000000A1 /* MusicLibraryView.swift */,
 				9AB0C6BB2C73C9CB00F7CD30 /* NotchHomeView.swift */,
 				14D570C52C5F38210011E668 /* BoringHeader.swift */,
 				14D570D12C5F6C6A0011E668 /* BoringExtrasMenu.swift */,
@@ -969,6 +975,8 @@
 				1160F8D82DD98230006FBB94 /* NotchShape.swift in Sources */,
 				AA00000000000000000000C2 /* AlbumGlowView.swift in Sources */,
 				AA00000000000000000000A2 /* NotchBackground.swift in Sources */,
+				BB00000000000000000000A4 /* LyricsViews.swift in Sources */,
+				BB00000000000000000000A2 /* MusicLibraryView.swift in Sources */,
 				5917FD112E57891600E87F1C /* MediaKeyInterceptor.swift in Sources */,
 				14C08BC12C8E03AD000F8AA0 /* NSImage+Extensions.swift in Sources */,
 				149E0B9A2C737D40006418B1 /* WebcamView.swift in Sources */,

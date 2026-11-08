@@ -39,6 +39,8 @@ class BoringViewModel: NSObject, ObservableObject {
     
     let webcamManager = WebcamManager.shared
     @Published var isCameraExpanded: Bool = false
+    /// What the home view shows: the normal tiles, the music library, or full lyrics.
+    @Published var homePanel: HomePanel = .home
     @Published var isRequestingAuthorization: Bool = false
     
     deinit {
@@ -208,6 +210,7 @@ class BoringViewModel: NSObject, ObservableObject {
         self.notchSize = getClosedNotchSize(screenUUID: self.screenUUID)
         self.closedNotchSize = self.notchSize
         self.notchState = .closed
+        self.homePanel = .home
         self.isBatteryPopoverActive = false
         self.coordinator.sneakPeek.show = false
         self.edgeAutoOpenActive = false
@@ -229,4 +232,8 @@ class BoringViewModel: NSObject, ObservableObject {
             }
         }
     }
+}
+
+enum HomePanel: Equatable {
+    case home, library, lyrics
 }
