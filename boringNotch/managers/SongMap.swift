@@ -6,8 +6,10 @@
 //  audio (which turns on the purple indicator). Apple Music doesn't tell apps
 //  anything about a song's rhythm, so this works it out:
 //
-//  - Tempo and tonal balance come from analysing the song's public 30-second
-//    preview. The audio is deleted straight after; only the numbers are kept.
+//  - The song's real motion comes from its public 30-second preview, run
+//    through the same analysis used for live audio: the rise and fall of each
+//    frequency band and every real bass hit. The audio is deleted straight
+//    after; only those numbers are kept, then replayed in time with the song.
 //  - Where the beats fall comes from the synced lyrics: line starts tend to
 //    land on the beat, so they pin the beat grid to the song's timeline.
 //  - Song structure also comes from the lyrics: repeated lines are the chorus,
@@ -23,8 +25,15 @@ import OSLog
 
 struct SongProfile: Sendable {
     var bpm: Double
-    /// Tonal balance: bass, low-mid, mid, high (0.45...1).
-    var bands: SIMD4<Float>
+    /// The preview's band levels (bass, low-mid, mid, high) over time.
+    var frames: [SIMD4<Float>]
+    /// Strength of a bass hit at each frame, 0 for none.
+    var hits: [Float]
+    var framesPerSecond: Double
+    /// Seconds into the preview of its first strong beat.
+    var firstBeat: Double
+    /// How many beats of the preview to loop: always whole bars.
+    var loopBeats: Double
 }
 
 struct BeatGrid: Sendable {
@@ -97,10 +106,10 @@ enum SongAnalysis {
         vDSP_hann_window(&window, vDSP_Length(size), Int32(vDSP_HANN_NORM))
 
         let edges: [Double] = [30, 160, 600, 2500, 10000]
-        let edgeBins = edges.map { min(Int($0 * Double(size) / sampleRate), bins - 1) }
+        let edgeBins = edges.map { max(min(Int($0 * Double(size) / sampleRate), bins - 1), 1) }
 
         var onset: [Float] = []
-        var totals = SIMD4<Float>(repeating: 0)
+        var raw: [SIMD4<Float>] = []
         var previous = [Float](repeating: 0, count: bins)
         var frame = [Float](repeating: 0, count: size)
         var real = [Float](repeating: 0, count: bins)
@@ -129,11 +138,14 @@ enum SongAnalysis {
                 previous[b] = compressed
             }
             onset.append(flux)
+            var energies = SIMD4<Float>(repeating: 0)
             for band in 0..<4 {
+                let upper = max(edgeBins[band + 1], edgeBins[band] + 1)
                 var sum: Float = 0
-                for b in edgeBins[band]..<max(edgeBins[band + 1], edgeBins[band] + 1) { sum += mags[b] * mags[b] }
-                totals[band] += sum
+                for b in edgeBins[band]..<upper { sum += mags[b] * mags[b] }
+                energies[band] = sqrt(sum / Float(upper - edgeBins[band]))
             }
+            raw.append(energies)
             position += hop
         }
         guard onset.count > 200 else { return nil }
@@ -141,16 +153,49 @@ enum SongAnalysis {
         let framesPerSecond = sampleRate / Double(hop)
         guard let bpm = tempo(onset: onset, framesPerSecond: framesPerSecond) else { return nil }
 
-        // Compare with a typical music spectrum, so the numbers say what's
-        // unusual about this song rather than just "bass is loudest".
-        let frames = Float(onset.count)
-        let reference = SIMD4<Float>(1, 0.5, 0.25, 0.1)
-        var relative = SIMD4<Float>(repeating: 0)
-        for i in 0..<4 { relative[i] = sqrt(totals[i] / frames) / sqrt(reference[i]) }
-        let peak = max(relative.max(), 1e-6)
-        var bands = SIMD4<Float>(repeating: 0)
-        for i in 0..<4 { bands[i] = min(max(pow(relative[i] / peak, 0.6), 0.45), 1) }
-        return SongProfile(bpm: bpm, bands: bands)
+        // The same steps as live audio in AudioReactor, so it moves the same way.
+        var peak = raw.reduce(SIMD4<Float>(repeating: 1e-3)) { pointwiseMax($0, $1) } * Float(0.7)
+        var frames: [SIMD4<Float>] = []
+        var hits: [Float] = []
+        frames.reserveCapacity(raw.count)
+        hits.reserveCapacity(raw.count)
+        var previousBass: Float = 0, fluxAverage: Float = 0
+        var lastHit = -1_000_000
+        let minimumGap = Int(0.2 * framesPerSecond)
+        for (i, e) in raw.enumerated() {
+            peak = pointwiseMax(peak * Float(0.9985), e)
+            var n = (e / peak).clamped(lowerBound: .zero, upperBound: SIMD4<Float>(repeating: 1))
+            n = SIMD4(pow(n.x, 1.3), pow(n.y, 1.2), pow(n.z, 1.2), pow(n.w, 1.1))
+            frames.append(n)
+
+            let flux = max(0, e.x - previousBass)
+            previousBass = e.x
+            fluxAverage = fluxAverage * 0.965 + flux * 0.035
+            var hit: Float = 0
+            if flux > fluxAverage * 2, n.x > 0.35, i - lastHit > minimumGap {
+                lastHit = i
+                hit = min(1, 0.45 + flux / max(fluxAverage * 5, 1e-4))
+            }
+            hits.append(hit)
+        }
+
+        // Find where the preview's beats fall, then loop whole bars of it.
+        let beatFrames = framesPerSecond * 60 / bpm
+        let slots = 16
+        var folded = [Float](repeating: 0, count: slots)
+        for (i, value) in onset.enumerated() {
+            let position = Double(i).truncatingRemainder(dividingBy: beatFrames) / beatFrames
+            folded[min(Int(position * Double(slots)), slots - 1)] += value
+        }
+        let bestSlot = folded.indices.max { folded[$0] < folded[$1] } ?? 0
+        let firstBeat = Double(bestSlot) / Double(slots) * 60 / bpm
+        let duration = Double(frames.count) / framesPerSecond
+        let bars = floor((duration - firstBeat) / (60 / bpm) / 4)
+        guard bars >= 1 else { return nil }
+        return SongProfile(
+            bpm: bpm, frames: frames, hits: hits, framesPerSecond: framesPerSecond,
+            firstBeat: firstBeat, loopBeats: bars * 4
+        )
     }
 
     /// Autocorrelation of the onset strength, favouring common tempos so a
@@ -291,6 +336,7 @@ final class SongFollower: @unchecked Sendable {
     private let lock = NSLock()
     private var map: Map?
     private var lastBeat = Int.min
+    private var lastFrame = -1
     private var cache: [String: SongProfile] = [:]
     private var currentKey = ""
     private var lines: [(time: Double, text: String)] = []
@@ -353,29 +399,38 @@ final class SongFollower: @unchecked Sendable {
     func levels(at position: Double) -> (bands: SIMD4<Float>, hit: Float)? {
         lock.lock(); defer { lock.unlock() }
         guard let map else { return nil }
-        let period = 60 / map.grid.bpm
-        let beats = (position - map.grid.offset) / period
-        let beat = Int(floor(beats))
-        let fraction = beats - floor(beats)
-        let surge = map.structure?.surge(at: position) ?? 0
-        let energy = min((map.structure?.energy(at: position) ?? 0.7) + surge, 1.15)
+        let profile = map.profile
 
-        let eighth = (beats * 2) - floor(beats * 2)
-        let pulse = Float(exp(-fraction * period * 7))
-        let offPulse = Float(exp(-eighth * period / 2 * 10))
-        let p = map.profile.bands
-        let bands = SIMD4<Float>(
-            p.x * energy * (0.42 + 0.58 * pulse),
-            p.y * energy * (0.55 + 0.45 * pulse),
-            p.z * energy * (0.72 + 0.28 * Float(0.5 + 0.5 * sin(position * 1.3))),
-            p.w * energy * (0.4 + 0.6 * offPulse)
-        )
+        // Which moment of the preview matches this beat of the song.
+        let tempoRatio = profile.bpm > 150 ? 2.0 : 1.0
+        let songBeats = (position - map.grid.offset) * map.grid.bpm * tempoRatio / 60
+        var loopBeat = songBeats.truncatingRemainder(dividingBy: profile.loopBeats)
+        if loopBeat < 0 { loopBeat += profile.loopBeats }
+        let previewTime = profile.firstBeat + loopBeat * 60 / profile.bpm
+        let frame = min(Int(previewTime * profile.framesPerSecond), profile.frames.count - 1)
 
+        // Any bass hit passed since the last look, even between screen frames.
         var hit: Float = 0
+        if frame > lastFrame, frame - lastFrame < 40, lastFrame >= 0 {
+            for i in (lastFrame + 1)...frame { hit = max(hit, profile.hits[i]) }
+        } else {
+            hit = profile.hits[frame]
+        }
+        lastFrame = frame
+
+        // The lyrics decide how big this part of the song is.
+        let surge = map.structure?.surge(at: position) ?? 0
+        let energy = (map.structure?.energy(at: position) ?? 0.78) + surge
+        let scale = min(max(energy / 0.78, 0.55), 1.3)
+        let cap = SIMD4<Float>(repeating: 1)
+        let bands = (profile.frames[frame] * scale).clamped(lowerBound: .zero, upperBound: cap)
+        hit = min(hit * min(scale, 1), 1)
+
+        // Big moments still land as a full hit.
+        let period = 60 / map.grid.bpm
+        let beat = Int(floor((position - map.grid.offset) / period))
         if beat != lastBeat {
             lastBeat = beat
-            let accent: Float = beat % 4 == 0 ? 1 : 0.68
-            hit = min(energy * accent * 1.05, 1)
             let beatTime = map.grid.offset + Double(beat) * period
             if map.structure?.isEntry(near: beatTime, within: period * 0.6) == true { hit = 1 }
         }
