@@ -82,6 +82,17 @@ class MusicManager: ObservableObject {
             }
             .store(in: &cancellables)
 
+        // Keep the map of the current Apple Music song up to date.
+        Publishers.CombineLatest3($songTitle, $artistName, $bundleIdentifier)
+            .debounce(for: .milliseconds(400), scheduler: DispatchQueue.main)
+            .sink { title, artist, bundle in
+                SongFollower.shared.songChanged(title: bundle == "com.apple.Music" ? title : nil, artist: artist)
+            }
+            .store(in: &cancellables)
+        $syncedLyrics
+            .sink { SongFollower.shared.lyricsChanged($0) }
+            .store(in: &cancellables)
+
         // Go back to automatic if the app we were following quits.
         NSWorkspace.shared.notificationCenter
             .publisher(for: NSWorkspace.didTerminateApplicationNotification)

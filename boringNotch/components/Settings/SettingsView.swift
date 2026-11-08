@@ -1496,7 +1496,7 @@ struct Appearance: View {
                     }
                 }
                 .disabled(!albumGlow)
-                Toggle("React to the real music", isOn: $realAudioReaction)
+                Toggle("Record system audio to react (shows purple indicator)", isOn: $realAudioReaction)
                     .disabled(!albumGlow)
                 Toggle("Real refraction (needs Screen Recording)", isOn: $realRefraction)
                     .disabled(!glassBackground)

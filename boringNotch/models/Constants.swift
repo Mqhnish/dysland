@@ -114,7 +114,7 @@ extension Defaults.Keys {
     /// Spike strength on the ferrofluid visualiser, 0...1
     static let visualizerSpikiness = Key<Double>("visualizerRipple", default: 0.5)
     /// React to the real system audio (needs System Audio Recording permission)
-    static let realAudioReaction = Key<Bool>("realAudioReaction", default: true)
+    static let realAudioReaction = Key<Bool>("realAudioReactionV2", default: false)
     /// Custom glass that refracts what's behind the notch (needs Screen Recording permission)
     static let realRefraction = Key<Bool>("realRefraction", default: true)
     /// How strongly the custom glass bends the background, 0...1

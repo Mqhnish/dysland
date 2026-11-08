@@ -88,7 +88,7 @@ final class AudioReactor {
     // MARK: - Public
 
     /// Called every frame from the visualiser (main thread).
-    func sample(time t: Double, playing: Bool) -> Levels {
+    func sample(time t: Double, playing: Bool, songPosition: Double? = nil) -> Levels {
         let now = CFAbsoluteTimeGetCurrent()
         if now - (lastSample ?? 0) > 1 { sessionStart = now }
         manageTap(now: now, playing: playing)
@@ -108,7 +108,11 @@ final class AudioReactor {
         lock.unlock()
 
         if !isReal && playing {
-            (target, hit) = simulate(t: t)
+            if let songPosition, let song = SongFollower.shared.levels(at: songPosition) {
+                (target, hit) = (song.bands, song.hit)
+            } else {
+                (target, hit) = simulate(t: t)
+            }
         }
         if !playing && !isReal { target = .zero }
 

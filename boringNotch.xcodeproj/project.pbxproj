@@ -16,6 +16,7 @@
 		BB00000000000000000000A4 /* LyricsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000000000000A3 /* LyricsViews.swift */; };
 		BB00000000000000000000B2 /* IslandViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000000000000B1 /* IslandViews.swift */; };
 		BB00000000000000000000B4 /* IslandCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000000000000B3 /* IslandCenter.swift */; };
+		BB00000000000000000000C2 /* SongMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000000000000C1 /* SongMap.swift */; };
 		AA00000000000000000000A2 /* NotchBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000000A1 /* NotchBackground.swift */; };
 		1100290C2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1100290B2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift */; };
 		110029272E84FD4C00035A57 /* TemporaryFileStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110029262E84FD4C00035A57 /* TemporaryFileStorageService.swift */; };
@@ -200,6 +201,7 @@
 		BB00000000000000000000A3 /* LyricsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsViews.swift; sourceTree = "<group>"; };
 		BB00000000000000000000B1 /* IslandViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandViews.swift; sourceTree = "<group>"; };
 		BB00000000000000000000B3 /* IslandCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandCenter.swift; sourceTree = "<group>"; };
+		BB00000000000000000000C1 /* SongMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongMap.swift; sourceTree = "<group>"; };
 		AA00000000000000000000A1 /* NotchBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchBackground.swift; sourceTree = "<group>"; };
 		1100290B2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSItemProvider+LoadHelpers.swift"; sourceTree = "<group>"; };
 		110029262E84FD4C00035A57 /* TemporaryFileStorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemporaryFileStorageService.swift; sourceTree = "<group>"; };
@@ -536,6 +538,7 @@
 				147163992C5D35FF0068B555 /* MusicManager.swift */,
 				AA00000000000000000000F1 /* ScreenBackdrop.swift */,
 				AA00000000000000000000E1 /* AudioReactor.swift */,
+				BB00000000000000000000C1 /* SongMap.swift */,
 				BB00000000000000000000B3 /* IslandCenter.swift */,
 				149E0B962C737D00006418B1 /* WebcamManager.swift */,
 				14C08BB52C8DE42D000F8AA0 /* CalendarManager.swift */,
@@ -981,6 +984,7 @@
 				1160F8D82DD98230006FBB94 /* NotchShape.swift in Sources */,
 				AA00000000000000000000C2 /* AlbumGlowView.swift in Sources */,
 				AA00000000000000000000A2 /* NotchBackground.swift in Sources */,
+				BB00000000000000000000C2 /* SongMap.swift in Sources */,
 				BB00000000000000000000B4 /* IslandCenter.swift in Sources */,
 				BB00000000000000000000B2 /* IslandViews.swift in Sources */,
 				BB00000000000000000000A4 /* LyricsViews.swift in Sources */,

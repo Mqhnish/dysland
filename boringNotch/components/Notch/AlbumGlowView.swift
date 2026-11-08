@@ -71,8 +71,11 @@ struct AlbumGlowView: View {
                     let t = context.date.timeIntervalSinceReferenceDate
                     // This closure also reruns on any music update while the notch
                     // is closed. Sampling then would start the audio capture.
+                    let songPosition: Double? = music.bundleIdentifier == "com.apple.Music"
+                        ? music.estimatedPlaybackPosition(at: context.date)
+                        : nil
                     let levels = active
-                        ? AudioReactor.shared.sample(time: t, playing: pulse && music.isPlaying)
+                        ? AudioReactor.shared.sample(time: t, playing: pulse && music.isPlaying, songPosition: songPosition)
                         : AudioReactor.Levels(bands: .zero, beat: 0, isReal: false)
                     Rectangle().fill(
                         ShaderLibrary.ferrofluid(
