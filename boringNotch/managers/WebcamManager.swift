@@ -62,6 +62,9 @@ class WebcamManager: NSObject, ObservableObject {
     
     private override init() {
         super.init()
+        // Start from what macOS actually says. This used to stay "not determined"
+        // until the first click, so the first press of the mirror did nothing.
+        authorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
         NotificationCenter.default.addObserver(self, selector: #selector(deviceWasDisconnected), name: .AVCaptureDeviceWasDisconnected, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(deviceWasConnected), name: .AVCaptureDeviceWasConnected, object: nil)
         checkCameraAvailability()

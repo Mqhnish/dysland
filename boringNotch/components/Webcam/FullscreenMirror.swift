@@ -4,7 +4,8 @@
 //
 //  Double-click the notch mirror to pop it out into a floating window in the
 //  middle of the screen. It grows out of the notch and shrinks back into it.
-//  Close it by double-clicking, pressing Esc, or the X button. Drag to move.
+//  Close it by clicking anywhere else, double-clicking, pressing Esc, or the
+//  X button. Drag to move.
 //
 
 import AppKit
@@ -38,6 +39,8 @@ final class FullscreenMirrorController: ObservableObject {
     @Published private(set) var isShowing = false
 
     private var panel: MirrorPanel?
+    /// Watches for clicks outside our app, so clicking away dismisses the mirror.
+    private var outsideClickMonitor: Any?
     /// Separate from the notch's capture session, so the mirror keeps running
     /// after the notch closes underneath it.
     private var session: AVCaptureSession?
@@ -110,6 +113,14 @@ final class FullscreenMirrorController: ObservableObject {
 
         sessionQueue.async { session.startRunning() }
 
+        // Global monitors only see clicks in other apps, so dragging the mirror
+        // or pressing its X doesn't count as clicking away.
+        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        ) { [weak self] _ in
+            Task { @MainActor in self?.close() }
+        }
+
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.42 * animationSpeed
             ctx.timingFunction = openCurve
@@ -122,6 +133,8 @@ final class FullscreenMirrorController: ObservableObject {
     func close() {
         guard isShowing, let panel else { return }
         isShowing = false
+        if let outsideClickMonitor { NSEvent.removeMonitor(outsideClickMonitor) }
+        outsideClickMonitor = nil
         let session = self.session
         self.session = nil
 
