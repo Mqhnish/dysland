@@ -60,7 +60,7 @@ final class MusicLibrary: ObservableObject {
                     if let first = playlists.first { select(first) }
                 }
             } catch {
-                self.error = "Couldn't read your Music library. Allow Boring Notch to control Music in System Settings › Privacy › Automation."
+                self.error = "Couldn't read your Music library. Allow Dysland to control Music in System Settings › Privacy › Automation."
             }
             loadingPlaylists = false
         }

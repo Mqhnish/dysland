@@ -208,7 +208,7 @@ final class AudioReactor {
         let outputUID = (uidRef?.takeRetainedValue() as String?) ?? ""
 
         let aggregate: [String: Any] = [
-            kAudioAggregateDeviceNameKey: "BoringNotch Liquid Tap",
+            kAudioAggregateDeviceNameKey: "Dysland Liquid Tap",
             kAudioAggregateDeviceUIDKey: UUID().uuidString,
             kAudioAggregateDeviceMainSubDeviceKey: outputUID,
             kAudioAggregateDeviceIsPrivateKey: true,

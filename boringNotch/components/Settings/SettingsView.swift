@@ -865,45 +865,22 @@ struct About: View {
                     Text("Version info")
                 }
 
-                UpdaterSettingsView(updater: updaterController.updater)
-
-                HStack(spacing: 30) {
-                    Spacer(minLength: 0)
-                    Button {
-                        if let url = URL(string: "https://github.com/TheBoredTeam/boring.notch") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    } label: {
-                        VStack(spacing: 5) {
-                            Image("Github")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 18)
-                            Text("GitHub")
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    Spacer(minLength: 0)
+                Section {
+                    Text("Dysland is a modified version of Boring Notch, last changed in November 2026. It is free software under the GNU General Public License v3 and comes with no warranty.")
+                    Text("Copyright © 2024-2026 Boring Notch contributors. Modifications © 2026 Mohnish Singh Rawat.")
+                        .foregroundStyle(.secondary)
+                    Link("Original Boring Notch project", destination: URL(string: "https://github.com/TheBoredTeam/boring.notch")!)
+                    Link("Read the GNU GPL v3", destination: URL(string: "https://www.gnu.org/licenses/gpl-3.0.html")!)
+                } header: {
+                    Text("License")
                 }
-                .buttonStyle(PlainButtonStyle())
             }
-            VStack(spacing: 0) {
-                Divider()
-                Text("Made with 🫶🏻 by not so boring not.people")
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 5)
-                    .padding(.bottom, 7)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 10)
-            }
-            .frame(maxWidth: .infinity, alignment: .center)
         }
         .toolbar {
             //            Button("Welcome window") {
             //                openWindow(id: "onboarding")
             //            }
             //            .controlSize(.extraLarge)
-            CheckForUpdatesView(updater: updaterController.updater)
         }
         .navigationTitle("About")
     }
@@ -1398,7 +1375,7 @@ struct Appearance: View {
 
             Section {
                 Defaults.Toggle(key: .showMirror) {
-                    Text("Enable boring mirror")
+                    Text("Enable mirror")
                 }
                     .disabled(!checkVideoInput())
                 Picker("Mirror shape", selection: $mirrorShape) {
@@ -1585,7 +1562,7 @@ struct Appearance: View {
             } header: {
                 Text("Dynamic Island")
             } footer: {
-                Text("Pop-ups drop out of the notch for AirPods, audio devices, Focus, low battery and finished timers. Focus pop-ups only work if macOS lets Boring Notch see your Focus status.")
+                Text("Pop-ups drop out of the notch for AirPods, audio devices, Focus, low battery and finished timers. Focus pop-ups only work if macOS lets Dysland see your Focus status.")
                     .foregroundStyle(.secondary)
                     .font(.caption)
             }

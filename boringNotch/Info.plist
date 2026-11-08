@@ -12,15 +12,7 @@
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Shows your AirPods' battery level when they connect.</string>
 	<key>NSAudioCaptureUsageDescription</key>
-	<string>Boring Notch listens to the music playing on your Mac so the liquid visualiser can react to it. Audio is analysed on-device and never recorded or sent anywhere.</string>
-	<key>SUEnableDownloaderService</key>
-	<true/>
-	<key>SUEnableInstallerLauncherService</key>
-	<true/>
-	<key>SUFeedURL</key>
-	<string>https://TheBoredTeam.github.io/boring.notch/appcast.xml</string>
-	<key>SUPublicEDKey</key>
-	<string>B1Y47t8C/v8ImurYA+9arEsuCrpxwJSviekiflMElbI=</string>
+	<string>Dysland listens to the music playing on your Mac so the liquid visualiser can react to it. Audio is analysed on-device and never recorded or sent anywhere.</string>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict/>
