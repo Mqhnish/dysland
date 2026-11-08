@@ -68,12 +68,29 @@ class MusicManager: ObservableObject {
     @Published var isTransitioning: Bool = false
     private var transitionWorkItem: DispatchWorkItem?
 
+    /// A temporary choice of which app the player follows. nil means the source
+    /// set in Settings, which by default is whatever macOS says is playing.
+    @Published private(set) var sourceOverride: MediaControllerType?
+
     // MARK: - Initialization
     init() {
         // Listen for changes to the default controller preference
         NotificationCenter.default.publisher(for: Notification.Name.mediaControllerChanged)
             .sink { [weak self] _ in
+                self?.sourceOverride = nil
                 self?.setActiveControllerBasedOnPreference()
+            }
+            .store(in: &cancellables)
+
+        // Go back to automatic if the app we were following quits.
+        NSWorkspace.shared.notificationCenter
+            .publisher(for: NSWorkspace.didTerminateApplicationNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] note in
+                guard let self, let override = self.sourceOverride,
+                      let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                      app.bundleIdentifier == Self.bundleID(for: override) else { return }
+                self.selectSource(nil)
             }
             .store(in: &cancellables)
 
@@ -149,7 +166,7 @@ class MusicManager: ObservableObject {
     }
 
     private func setActiveControllerBasedOnPreference() {
-        let preferredType = Defaults[.mediaController]
+        let preferredType = sourceOverride ?? Defaults[.mediaController]
         print("Preferred Media Controller: \(preferredType)")
 
         // If NowPlaying is deprecated but that's the preference, use Apple Music instead
@@ -176,6 +193,38 @@ class MusicManager: ObservableObject {
 
         // Get current state from active controller
         forceUpdate()
+    }
+
+    // MARK: - Switching source
+
+    static func bundleID(for type: MediaControllerType) -> String? {
+        switch type {
+        case .appleMusic: return "com.apple.Music"
+        case .spotify: return "com.spotify.client"
+        default: return nil
+        }
+    }
+
+    /// Automatic (nil), plus each music app that's currently open.
+    var availableSources: [MediaControllerType?] {
+        let apps: [MediaControllerType] = [.appleMusic, .spotify].filter { type in
+            guard let id = Self.bundleID(for: type) else { return false }
+            return !NSRunningApplication.runningApplications(withBundleIdentifier: id).isEmpty
+        }
+        return [nil] + apps.map { Optional($0) }
+    }
+
+    func selectSource(_ type: MediaControllerType?) {
+        guard type != sourceOverride else { return }
+        sourceOverride = type
+        setActiveControllerBasedOnPreference()
+    }
+
+    /// Moves on to the next available source.
+    func cycleSource() {
+        let sources = availableSources
+        let index = sources.firstIndex(of: sourceOverride) ?? -1
+        selectSource(sources[(index + 1) % sources.count])
     }
 
     // MARK: - Update Methods

@@ -134,7 +134,7 @@ struct MusicControlsView: View {
         GeometryReader { geo in
             VStack(alignment: .leading, spacing: 4) {
                 ZStack(alignment: .topTrailing) {
-                    songInfo(width: max(geo.size.width - 52, 40), lyricWidth: geo.size.width)
+                    songInfo(width: max(geo.size.width - 78, 40), lyricWidth: geo.size.width)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     MusicPanelButtons()
                         .offset(y: -2)

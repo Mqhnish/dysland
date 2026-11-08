@@ -401,6 +401,7 @@ struct MusicPanelButtons: View {
 
     var body: some View {
         HStack(spacing: 4) {
+            SourceButton()
             if Defaults[.enableLyrics] {
                 small("quote.bubble", active: false) {
                     withAnimation(.smooth(duration: 0.35)) { vm.homePanel = .lyrics }
@@ -415,6 +416,54 @@ struct MusicPanelButtons: View {
 
     private func small(_ icon: String, active: Bool, action: @escaping () -> Void) -> some View {
         HoverIcon(icon: icon, action: action)
+    }
+}
+
+/// Shows which app the player is following; click to switch to the next one.
+/// Handy when a paused video has taken over from the music you were playing.
+private struct SourceButton: View {
+    @ObservedObject private var music = MusicManager.shared
+    @State private var hovering = false
+
+    private var bundleID: String {
+        music.sourceOverride.flatMap(MusicManager.bundleID(for:))
+            ?? music.bundleIdentifier ?? "com.apple.Music"
+    }
+
+    private func name(_ source: MediaControllerType?) -> String {
+        source?.rawValue ?? "Automatic"
+    }
+
+    private var hint: String {
+        let sources = music.availableSources
+        let index = sources.firstIndex(of: music.sourceOverride) ?? -1
+        let next = sources[(index + 1) % sources.count]
+        return "Following: \(name(music.sourceOverride)). Click to switch to \(name(next))."
+    }
+
+    var body: some View {
+        if music.availableSources.count > 1 {
+            Button {
+                withAnimation(.smooth(duration: 0.25)) { music.cycleSource() }
+            } label: {
+                ZStack(alignment: .bottomTrailing) {
+                    AppIcon(for: bundleID)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 17, height: 17)
+                        .frame(width: 22, height: 22)
+                    Image(systemName: music.sourceOverride == nil ? "arrow.left.arrow.right.circle.fill" : "pin.circle.fill")
+                        .font(.system(size: 9, weight: .bold))
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.black, .white)
+                }
+                .scaleEffect(hovering ? 1.1 : 1)
+                .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .help(hint)
+            .onHover { h in withAnimation(.easeOut(duration: 0.12)) { hovering = h } }
+        }
     }
 }
 
