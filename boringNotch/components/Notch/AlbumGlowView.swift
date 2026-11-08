@@ -52,8 +52,11 @@ struct AlbumGlowView: View {
         return music.isPlaying ? albumColors + eventColors : albumColors
     }
 
-    /// Flattened RGBA floats for the shader (at least 1 colour).
-    private var colorFloats: [Float] {
+    /// Flattened RGBA floats for the shader (at least 1 colour). Worked out only
+    /// when the colours change, not on every frame.
+    @State private var colorFloats: [Float] = [0.5, 0.5, 0.5, 1]
+
+    private static func flatten(_ colors: [Color]) -> [Float] {
         let list = colors.isEmpty ? [Color.gray] : colors
         return list.prefix(6).flatMap { color -> [Float] in
             let ns = NSColor(color).usingColorSpace(.sRGB) ?? .gray
@@ -64,7 +67,7 @@ struct AlbumGlowView: View {
     var body: some View {
         GeometryReader { geo in
             if !colors.isEmpty {
-                TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: !active || !motion)) { context in
+                TimelineView(.animation(minimumInterval: music.isPlaying ? 1.0 / 60.0 : 1.0 / 30.0, paused: !active || !motion)) { context in
                     let t = context.date.timeIntervalSinceReferenceDate
                     let levels = AudioReactor.shared.sample(time: t, playing: pulse && music.isPlaying)
                     Rectangle().fill(
@@ -84,6 +87,7 @@ struct AlbumGlowView: View {
         }
         .allowsHitTesting(false)
         .animation(.easeInOut(duration: 1.0), value: colors)
+        .onChange(of: colors, initial: true) { _, new in colorFloats = Self.flatten(new) }
         .onAppear { refresh(music.albumArt) }
         .onChange(of: music.albumArt) { _, art in refresh(art) }
     }

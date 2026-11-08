@@ -114,6 +114,8 @@ float leadHeight(float u, int i, float time, float4 bands, float beat, float rip
     for (int i = 0; i < STRINGS; i++) {
         float k = float(i) / float(STRINGS - 1) * 2.0 - 1.0;
         float y0 = ribbonHeight(u, k, time, bands, beat, ripple, size.y);
+        // Most pixels are nowhere near most strings; skip the slope for those.
+        if (abs(pos.y - (midY + y0)) > 60.0) continue;
         float y1 = ribbonHeight(u + du, k, time, bands, beat, ripple, size.y);
         float slope = y1 - y0;
         float d = abs(pos.y - (midY + y0)) / sqrt(1.0 + slope * slope);

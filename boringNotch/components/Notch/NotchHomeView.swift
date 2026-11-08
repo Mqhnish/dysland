@@ -19,7 +19,7 @@ struct MusicPlayerView: View {
     var body: some View {
         HStack {
             AlbumArtView(vm: vm, albumArtNamespace: albumArtNamespace).padding(.all, 5)
-            MusicControlsView().drawingGroup().compositingGroup()
+            MusicControlsView()
         }
     }
 }
@@ -134,7 +134,7 @@ struct MusicControlsView: View {
         GeometryReader { geo in
             VStack(alignment: .leading, spacing: 4) {
                 ZStack(alignment: .topTrailing) {
-                    songInfo(width: max(geo.size.width - 52, 40))
+                    songInfo(width: max(geo.size.width - 52, 40), lyricWidth: geo.size.width)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     MusicPanelButtons()
                         .offset(y: -2)
@@ -146,7 +146,7 @@ struct MusicControlsView: View {
         .padding(.leading, 5)
     }
 
-    private func songInfo(width: CGFloat) -> some View {
+    private func songInfo(width: CGFloat, lyricWidth: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             MarqueeText(
                 $musicManager.songTitle, font: .headline, nsFont: .headline, textColor: .white,
@@ -162,7 +162,7 @@ struct MusicControlsView: View {
             )
             .fontWeight(.medium)
             if Defaults[.enableLyrics] {
-                CompactLyricLine(width: width)
+                CompactLyricLine(width: lyricWidth)
                     .padding(.top, 2)
             }
         }

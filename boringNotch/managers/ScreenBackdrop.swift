@@ -16,14 +16,23 @@ import Defaults
 import OSLog
 @preconcurrency import ScreenCaptureKit
 
+/// The live frames. Kept apart from ScreenBackdrop so that only the one view
+/// showing the picture redraws 30 times a second, not every glass tile.
+@MainActor
+final class BackdropFrame: ObservableObject {
+    /// Latest frame of the area behind the notch window, in window coordinates.
+    @Published fileprivate(set) var image: CGImage?
+    /// The window-sized rect the image covers (top-left origin, points).
+    @Published fileprivate(set) var windowSize: CGSize = .zero
+}
+
 @MainActor
 final class ScreenBackdrop: NSObject, ObservableObject {
     static let shared = ScreenBackdrop()
 
-    /// Latest frame of the area behind the notch window, in window coordinates.
-    @Published private(set) var image: CGImage?
-    /// The window-sized rect the image covers (top-left origin, points).
-    @Published private(set) var windowSize: CGSize = .zero
+    let frame = BackdropFrame()
+    /// Whether frames are available. Only changes when capture starts or stops.
+    @Published private(set) var hasFrame = false
 
     private let log = Logger(subsystem: "boringnotch.liquid", category: "backdrop")
     private var stream: SCStream?
@@ -33,7 +42,7 @@ final class ScreenBackdrop: NSObject, ObservableObject {
     private var stopTask: Task<Void, Never>?
     private var askedForPermission = false
 
-    var hasFrame: Bool { image != nil }
+    private var startTask: Task<Void, Never>?
 
     /// Call when the notch opens.
     func start(for window: NSWindow?) {
@@ -51,12 +60,19 @@ final class ScreenBackdrop: NSObject, ObservableObject {
             return
         }
 
+        // Wait out the opening animation: setting up capture does main-thread
+        // work and would make it stutter.
         starting = true
-        Task { await self.beginCapture() }
+        startTask = Task {
+            try? await Task.sleep(for: .milliseconds(450))
+            guard !Task.isCancelled else { self.starting = false; return }
+            await self.beginCapture()
+        }
     }
 
     /// Call when the notch closes. Keeps the stream briefly in case it reopens.
     func stop() {
+        startTask?.cancel()
         stopTask?.cancel()
         stopTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(2))
@@ -101,7 +117,11 @@ final class ScreenBackdrop: NSObject, ObservableObject {
             config.colorSpaceName = CGColorSpace.sRGB
 
             let output = FrameOutput { [weak self] cgImage in
-                Task { @MainActor in self?.image = cgImage }
+                Task { @MainActor in
+                    guard let self else { return }
+                    self.frame.image = cgImage
+                    if !self.hasFrame { self.hasFrame = true }
+                }
             }
             let stream = SCStream(filter: filter, configuration: config, delegate: nil)
             try stream.addStreamOutput(output, type: .screen, sampleHandlerQueue: output.queue)
@@ -109,7 +129,7 @@ final class ScreenBackdrop: NSObject, ObservableObject {
 
             self.output = output
             self.stream = stream
-            self.windowSize = frame.size
+            self.frame.windowSize = frame.size
             log.info("Backdrop capture running: \(Int(source.width), privacy: .public)x\(Int(source.height), privacy: .public) pt")
         } catch {
             log.error("Backdrop capture failed: \(error.localizedDescription, privacy: .public)")
@@ -121,7 +141,8 @@ final class ScreenBackdrop: NSObject, ObservableObject {
         try? await stream.stopCapture()
         self.stream = nil
         self.output = nil
-        self.image = nil
+        self.frame.image = nil
+        self.hasFrame = false
         log.info("Backdrop capture stopped")
     }
 }
@@ -129,7 +150,8 @@ final class ScreenBackdrop: NSObject, ObservableObject {
 /// Receives frames on a background queue and turns them into CGImages.
 private final class FrameOutput: NSObject, SCStreamOutput, @unchecked Sendable {
     let queue = DispatchQueue(label: "boringnotch.backdrop", qos: .userInteractive)
-    private let context = CIContext(options: [.cacheIntermediates: false])
+    /// Created on first use, on the capture queue: it's slow to set up.
+    private lazy var context = CIContext(options: [.cacheIntermediates: false])
     private let onFrame: (CGImage) -> Void
 
     init(onFrame: @escaping (CGImage) -> Void) {

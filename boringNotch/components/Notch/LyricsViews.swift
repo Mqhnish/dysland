@@ -13,12 +13,16 @@
 import Defaults
 import SwiftUI
 
-/// Elapsed playback time right now, extrapolated between updates.
+/// Show each line slightly early: synced lyrics mark when a line starts, so
+/// waiting for that moment and then animating in feels late.
+private let lyricLead: Double = 0.3
+
+/// Playback time to use for lyrics, extrapolated between updates.
 @MainActor
 private func playbackPosition(_ music: MusicManager, at date: Date) -> Double {
-    guard music.isPlaying else { return music.elapsedTime }
+    guard music.isPlaying else { return music.elapsedTime + lyricLead }
     let delta = date.timeIntervalSince(music.timestampDate)
-    return min(max(music.elapsedTime + delta * music.playbackRate, 0), max(music.songDuration, 0))
+    return min(max(music.elapsedTime + delta * music.playbackRate + lyricLead, 0), max(music.songDuration, 0))
 }
 
 // MARK: - Compact line
@@ -39,7 +43,7 @@ struct CompactLyricLine: View {
                         ? music.syncedLyrics[index + 1].time
                         : line.time + 5
                     let progress = min(max((elapsed - line.time) / max(next - line.time, 0.3), 0), 1)
-                    SweepText(text: line.text, progress: progress, tint: tint)
+                    SweepText(text: line.text, progress: progress, tint: tint, width: width)
                         .id(index)
                         .transition(.asymmetric(
                             insertion: .offset(y: 9).combined(with: .opacity),
@@ -54,9 +58,8 @@ struct CompactLyricLine: View {
                         .transition(.opacity)
                 }
             }
-            .frame(width: width, height: 16, alignment: .leading)
-            .clipped()
-            .animation(.smooth(duration: 0.35), value: index)
+            .frame(width: width, height: 18, alignment: .leading)
+            .animation(.smooth(duration: 0.2), value: index)
         }
         .opacity(music.isPlaying || music.lyricIndex(at: music.elapsedTime) != nil ? 1 : 0.5)
         .contentShape(Rectangle())
@@ -73,17 +76,24 @@ struct CompactLyricLine: View {
     }
 }
 
-/// Text that fills in from left to right with a soft edge.
+/// Text that fills in from left to right with a soft edge. Lines too long to
+/// fit glide sideways as they're sung, instead of being cut off.
 private struct SweepText: View {
     let text: String
     let progress: Double
     let tint: Color
+    let width: CGFloat
+    @State private var textWidth: CGFloat = 0
+
+    private var overflow: CGFloat { max(textWidth - width, 0) }
+    /// Holds still briefly at each end so the start and finish can be read.
+    private var glide: CGFloat { CGFloat(min(max((progress - 0.12) / 0.76, 0), 1)) }
 
     var body: some View {
         let base = Text(text)
             .font(.system(size: 12, weight: .semibold))
             .lineLimit(1)
-            .truncationMode(.tail)
+            .fixedSize()
         base
             .foregroundStyle(.white.opacity(0.32))
             .overlay(alignment: .leading) {
@@ -91,20 +101,32 @@ private struct SweepText: View {
                     .foregroundStyle(
                         LinearGradient(colors: [.white, tint], startPoint: .leading, endPoint: .trailing)
                     )
-                    .mask(alignment: .leading) {
-                        GeometryReader { g in
-                            let edge = 0.08
-                            LinearGradient(
-                                stops: [
-                                    .init(color: .white, location: 0),
-                                    .init(color: .white, location: max(progress - edge, 0)),
-                                    .init(color: .clear, location: min(progress + edge, 1)),
-                                ],
-                                startPoint: .leading, endPoint: .trailing
-                            )
-                            .frame(width: g.size.width)
-                        }
+                    .mask {
+                        LinearGradient(
+                            stops: [
+                                .init(color: .white, location: 0),
+                                .init(color: .white, location: max(progress - 0.08, 0)),
+                                .init(color: .clear, location: max(min(progress + 0.08, 1), 0.0001)),
+                            ],
+                            startPoint: .leading, endPoint: .trailing
+                        )
                     }
+            }
+            .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { textWidth = $0 }
+            .offset(x: -overflow * glide)
+            .frame(width: width, alignment: .leading)
+            .mask {
+                // Soft edges only on the sides where text runs past the frame.
+                let edge = overflow > 0 ? 14 / max(width, 1) : 0
+                LinearGradient(
+                    stops: [
+                        .init(color: glide > 0 && overflow > 0 ? .clear : .white, location: 0),
+                        .init(color: .white, location: edge),
+                        .init(color: .white, location: 1 - edge),
+                        .init(color: glide < 1 && overflow > 0 ? .clear : .white, location: 1),
+                    ],
+                    startPoint: .leading, endPoint: .trailing
+                )
             }
     }
 }
@@ -218,11 +240,11 @@ private struct SyncedLyricsScroller: View {
                 )
             )
             .background {
-                TimelineView(.animation(minimumInterval: 0.1, paused: !music.isPlaying)) { t in
+                TimelineView(.animation(minimumInterval: 0.05, paused: !music.isPlaying)) { t in
                     let idx = music.lyricIndex(at: playbackPosition(music, at: t.date)) ?? -1
                     Color.clear
                         .onChange(of: idx, initial: true) { _, new in
-                            withAnimation(.spring(duration: 0.55, bounce: 0.12)) {
+                            withAnimation(.spring(duration: 0.38, bounce: 0.1)) {
                                 current = new
                                 proxy.scrollTo(max(new, 0), anchor: UnitPoint(x: 0.5, y: 0.35))
                             }

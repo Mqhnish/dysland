@@ -415,7 +415,7 @@ final class FocusWatcher {
                 self.log.info("Focus authorization: \(status.rawValue, privacy: .public)")
                 guard status == .authorized else { return }
                 self.last = INFocusStatusCenter.default.focusStatus.isFocused
-                self.timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+                self.timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
                     self?.poll()
                 }
             }

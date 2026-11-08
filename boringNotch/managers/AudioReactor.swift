@@ -47,6 +47,11 @@ final class AudioReactor {
     private var lastSample: CFAbsoluteTime?
     private var lastPlaying: CFAbsoluteTime = 0
     private var nextStartAttempt: CFAbsoluteTime = 0
+    /// When the visualiser last started drawing after a gap.
+    private var sessionStart: CFAbsoluteTime = 0
+    /// Stops the tap once nothing is drawing. Only the open visualiser calls
+    /// sample(), so nothing else would ever notice the notch had closed.
+    private var watchdog: Timer?
 
     // Simulation state.
     private var simNextBeat: Double = 0
@@ -85,6 +90,7 @@ final class AudioReactor {
     /// Called every frame from the visualiser (main thread).
     func sample(time t: Double, playing: Bool) -> Levels {
         let now = CFAbsoluteTimeGetCurrent()
+        if now - (lastSample ?? 0) > 1 { sessionStart = now }
         manageTap(now: now, playing: playing)
 
         let dt = Float(min(max(now - (lastSample ?? now), 0), 0.1))
@@ -147,7 +153,8 @@ final class AudioReactor {
     private func manageTap(now: CFAbsoluteTime, playing: Bool) {
         if playing { lastPlaying = now }
         let wanted = Defaults[.realAudioReaction] && (playing || now - lastPlaying < 8)
-        if wanted && !isTapRunning && now >= nextStartAttempt {
+        // Creating the tap blocks briefly, so let the opening animation finish.
+        if wanted && !isTapRunning && now >= nextStartAttempt && now - sessionStart > 0.8 {
             nextStartAttempt = now + 30 // don't hammer on failure
             if #available(macOS 14.2, *) { startTap() }
         } else if !wanted && isTapRunning {
@@ -237,10 +244,23 @@ final class AudioReactor {
             return
         }
         isTapRunning = true
+        startWatchdog()
         log.info("Audio tap running at \(self.sampleRate, privacy: .public) Hz, \(self.channelCount, privacy: .public) ch")
     }
 
+    private func startWatchdog() {
+        watchdog?.invalidate()
+        watchdog = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self, self.isTapRunning,
+                  CFAbsoluteTimeGetCurrent() - (self.lastSample ?? 0) > 2 else { return }
+            self.stopTap()
+            self.nextStartAttempt = 0 // reopening should reconnect straight away
+        }
+    }
+
     private func stopTap() {
+        watchdog?.invalidate()
+        watchdog = nil
         cleanup()
         log.info("Audio tap stopped")
     }

@@ -115,12 +115,7 @@ struct NotchBackground<S: Shape>: View {
         GeometryReader { geo in
             let origin = geo.frame(in: .global).origin
             ZStack(alignment: .topLeading) {
-                if let image = backdrop.image {
-                    Image(decorative: image, scale: 1)
-                        .resizable()
-                        .frame(width: backdrop.windowSize.width, height: backdrop.windowSize.height)
-                        .offset(x: -origin.x, y: -origin.y)
-                }
+                BackdropPicture(origin: origin)
                 Rectangle().fill(.black.opacity(0.06 + tint))
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
@@ -181,6 +176,21 @@ struct NotchBackground<S: Shape>: View {
             Rectangle()
                 .fill(.ultraThinMaterial)
                 .overlay(Color.black.opacity(tint + 0.15))
+        }
+    }
+}
+
+/// Just the captured picture, so a new frame only redraws this view.
+private struct BackdropPicture: View {
+    let origin: CGPoint
+    @ObservedObject private var frame = ScreenBackdrop.shared.frame
+
+    var body: some View {
+        if let image = frame.image {
+            Image(decorative: image, scale: 1)
+                .resizable()
+                .frame(width: frame.windowSize.width, height: frame.windowSize.height)
+                .offset(x: -origin.x, y: -origin.y)
         }
     }
 }

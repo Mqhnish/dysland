@@ -171,10 +171,15 @@ struct WheelPicker: View {
         return Int(ceil(Double(range) / Double(step))) + 1
     }
 
-    private func dateToString(for date: Date) -> String {
+    /// Building a DateFormatter is slow, and this ran once per day shown.
+    private static let dayFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "E"
-        return formatter.string(from: date)
+        return formatter
+    }()
+
+    private func dateToString(for date: Date) -> String {
+        Self.dayFormatter.string(from: date)
     }
 }
 
