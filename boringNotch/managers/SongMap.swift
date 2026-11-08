@@ -220,6 +220,8 @@ enum SongAnalysis {
 struct SongStructure: Sendable {
     private let times: [Double]
     private let levels: [Float]
+    /// Where the big moments are: a chorus starting, or vocals back after a break.
+    let entries: [Double]
 
     init(lines: [(time: Double, text: String)]) {
         times = lines.map(\.time)
@@ -233,6 +235,28 @@ struct SongStructure: Sendable {
             let score = range.map { repeated[$0] }.reduce(0, +) / Float(range.count)
             return 0.6 + 0.38 * score
         }
+
+        var found: [Double] = []
+        for i in lines.indices.dropFirst() {
+            let chorusStarts = repeated[i] == 1 && repeated[i - 1] == 0
+                && i + 1 < lines.count && repeated[i + 1] == 1
+            let backFromBreak = lines[i].time - lines[i - 1].time > 9
+            guard chorusStarts || backFromBreak else { continue }
+            if let last = found.last, lines[i].time - last < 12 { continue }
+            found.append(lines[i].time)
+        }
+        entries = found
+    }
+
+    /// Extra lift just after a big moment, fading over a couple of seconds.
+    func surge(at t: Double) -> Float {
+        guard let entry = entries.last(where: { $0 <= t }), t - entry < 3 else { return 0 }
+        return Float(exp(-(t - entry) / 1.1)) * 0.35
+    }
+
+    /// Whether a big moment falls on the beat at time `t`.
+    func isEntry(near t: Double, within window: Double) -> Bool {
+        entries.contains { abs($0 - t) <= window }
     }
 
     /// 0...1 intensity at a point in the song.
@@ -333,7 +357,8 @@ final class SongFollower: @unchecked Sendable {
         let beats = (position - map.grid.offset) / period
         let beat = Int(floor(beats))
         let fraction = beats - floor(beats)
-        let energy = map.structure?.energy(at: position) ?? 0.7
+        let surge = map.structure?.surge(at: position) ?? 0
+        let energy = min((map.structure?.energy(at: position) ?? 0.7) + surge, 1.15)
 
         let eighth = (beats * 2) - floor(beats * 2)
         let pulse = Float(exp(-fraction * period * 7))
@@ -351,6 +376,8 @@ final class SongFollower: @unchecked Sendable {
             lastBeat = beat
             let accent: Float = beat % 4 == 0 ? 1 : 0.68
             hit = min(energy * accent * 1.05, 1)
+            let beatTime = map.grid.offset + Double(beat) * period
+            if map.structure?.isEntry(near: beatTime, within: period * 0.6) == true { hit = 1 }
         }
         return (bands, hit)
     }
