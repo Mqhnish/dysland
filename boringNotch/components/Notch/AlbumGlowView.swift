@@ -69,7 +69,11 @@ struct AlbumGlowView: View {
             if !colors.isEmpty {
                 TimelineView(.animation(minimumInterval: music.isPlaying ? 1.0 / 60.0 : 1.0 / 30.0, paused: !active || !motion)) { context in
                     let t = context.date.timeIntervalSinceReferenceDate
-                    let levels = AudioReactor.shared.sample(time: t, playing: pulse && music.isPlaying)
+                    // This closure also reruns on any music update while the notch
+                    // is closed. Sampling then would start the audio capture.
+                    let levels = active
+                        ? AudioReactor.shared.sample(time: t, playing: pulse && music.isPlaying)
+                        : AudioReactor.Levels(bands: .zero, beat: 0, isReal: false)
                     Rectangle().fill(
                         ShaderLibrary.ferrofluid(
                             .float2(origin),

@@ -78,7 +78,10 @@ struct NotchBackground<S: Shape>: View {
     var body: some View {
         ZStack(alignment: .top) {
             if customRefraction {
+                // No fade on removal: while fading out, this view (and the
+                // visualiser inside it) could keep running indefinitely.
                 refractedBackdrop
+                    .transition(.identity)
             } else {
                 standardLayers
             }

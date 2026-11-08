@@ -23,12 +23,29 @@ struct SystemEventIndicatorModifier: View {
     let showSlider: Bool = false
     var sendEventBack: (CGFloat) -> Void
     
+    /// Where the sound is going, shown under the volume bar.
+    private var outputName: String? {
+        eventType == .volume ? AudioDeviceWatcher.currentOutputName() : nil
+    }
+
     var body: some View {
+        VStack(spacing: 4) {
+            row
+            if let outputName {
+                Text(outputName)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    private var row: some View {
         HStack(spacing: 14) {
             switch (eventType) {
                 case .volume:
                     if icon.isEmpty {
-                        Image(systemName: SpeakerSymbol(value))
+                        Image(systemName: outputSymbol)
                             .contentTransition(.interpolate)
                             .symbolVariant(value > 0 ? .none : .slash)
                             .frame(width: 20, height: 15, alignment: .leading)
@@ -79,6 +96,15 @@ struct SystemEventIndicatorModifier: View {
         .imageScale(.large)
     }
     
+    /// AirPods or Beats icon when they're in use, the speaker icon otherwise.
+    private var outputSymbol: String {
+        guard value > 0, let name = outputName,
+              let symbol = AudioDeviceWatcher.headphoneSymbol(forName: name) else {
+            return SpeakerSymbol(value)
+        }
+        return symbol
+    }
+
     func SpeakerSymbol(_ value: CGFloat) -> String {
         switch(value) {
             case 0:

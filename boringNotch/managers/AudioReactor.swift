@@ -51,7 +51,7 @@ final class AudioReactor {
     private var sessionStart: CFAbsoluteTime = 0
     /// Stops the tap once nothing is drawing. Only the open visualiser calls
     /// sample(), so nothing else would ever notice the notch had closed.
-    private var watchdog: Timer?
+    private var watchdog: DispatchSourceTimer?
 
     // Simulation state.
     private var simNextBeat: Double = 0
@@ -249,17 +249,23 @@ final class AudioReactor {
     }
 
     private func startWatchdog() {
-        watchdog?.invalidate()
-        watchdog = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+        // A dispatch timer, because the visualiser can call in from a thread
+        // with no run loop, where a plain Timer would silently never fire.
+        watchdog?.cancel()
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(deadline: .now() + 1, repeating: 1)
+        timer.setEventHandler { [weak self] in
             guard let self, self.isTapRunning,
                   CFAbsoluteTimeGetCurrent() - (self.lastSample ?? 0) > 2 else { return }
             self.stopTap()
             self.nextStartAttempt = 0 // reopening should reconnect straight away
         }
+        timer.resume()
+        watchdog = timer
     }
 
     private func stopTap() {
-        watchdog?.invalidate()
+        watchdog?.cancel()
         watchdog = nil
         cleanup()
         log.info("Audio tap stopped")

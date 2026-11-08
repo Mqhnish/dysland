@@ -202,11 +202,7 @@ final class IslandCenter: ObservableObject {
         let name = device.name
         let lower = name.lowercased()
         if lower.contains("airpods") || lower.contains("beats") {
-            let icon: String
-            if lower.contains("max") { icon = "airpodsmax" }
-            else if lower.contains("pro") { icon = "airpods.pro" }
-            else if lower.contains("beats") { icon = "beats.headphones" }
-            else { icon = "airpods" }
+            let icon = AudioDeviceWatcher.headphoneSymbol(forName: name) ?? "airpods"
 
             let battery = BluetoothBattery.levels(forName: name)
             var subtitle = "Connected"
@@ -302,6 +298,20 @@ final class AudioDeviceWatcher {
         lastID = id
         let device = Device(id: id, name: Self.name(of: id) ?? "Audio device", isBluetooth: Self.isBluetooth(id))
         onChange?(device)
+    }
+
+    /// Name of the device sound is currently playing through.
+    static func currentOutputName() -> String? {
+        defaultOutput().flatMap(name(of:))
+    }
+
+    /// The matching symbol for AirPods and Beats, nil for anything else.
+    static func headphoneSymbol(forName name: String) -> String? {
+        let lower = name.lowercased()
+        guard lower.contains("airpods") || lower.contains("beats") else { return nil }
+        if lower.contains("beats") { return "beats.headphones" }
+        if lower.contains("max") { return "airpodsmax" }
+        return lower.contains("pro") ? "airpods.pro" : "airpods"
     }
 
     static func defaultOutput() -> AudioDeviceID? {
