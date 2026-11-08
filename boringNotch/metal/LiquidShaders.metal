@@ -18,13 +18,21 @@ using namespace metal;
 
 // MARK: - Liquid visualiser
 
-// A flowing ribbon of fine luminous strings. All the strings follow one shared
-// wave and fan out slightly from each other, so they read as a single piece of
-// silk. Height follows the music along the ribbon (bass in the middle, highs
-// towards the ends), beats send a ripple outward from the centre, and colour
-// runs through the album palette. Both ends taper and fade to nothing.
+// A flowing ribbon of fine luminous strings with a few brighter strings weaving
+// through it. The fine strings follow one shared wave and fan out slightly, so
+// they read as a single piece of silk; the bright ones move independently and
+// cross over it. Height follows the music (bass in the middle, highs towards
+// the ends), beats send a ripple outward from the centre, and colour runs
+// through the album palette. Both ends taper and fade to nothing.
 
-constant int STRINGS = 14;
+constant int STRINGS = 20;
+constant int LEADS = 3;
+
+/// Rounds off loud peaks so they never hit the panel edge and get cut flat.
+float softLimit(float y, float h) {
+    float limit = h * 0.42;
+    return limit * tanh(y / limit);
+}
 
 float3 paletteAt(float x, device const float *cols, int n) {
     if (n <= 1) return float3(cols[0], cols[1], cols[2]);
@@ -60,7 +68,28 @@ float ribbonHeight(float u, float k, float time, float4 bands, float beat, float
     float s = sin(x * 0.9 - time * 0.5);
     float spread = h * 0.10 * k * (0.35 + 0.65 * s * s);
 
-    return (amp * (wave + rip) + spread) * taper;
+    return softLimit((amp * (wave + rip) + spread) * taper, h);
+}
+
+/// Pinches to zero at both ends.
+float leadEnvelope(float u) {
+    float x = u * 2.0;
+    return pow(4.0 / (4.0 + x * x * x * x), 4.0);
+}
+
+/// One of the bright strings, in points from the centre line.
+float leadHeight(float u, int i, float time, float4 bands, float beat, float ripple, float h) {
+    float fi = float(i);
+    float x = u * 2.0;
+    float band = (i == 0) ? bands.x : (i == 1) ? bands.z : bands.y;
+    float amp = h * (0.06 + 0.36 * band + 0.05 * beat);
+    float freq = 2.0 + 0.8 * fi;
+    float speed = 0.8 + 0.3 * fi;
+    float dir = (i % 2 == 0) ? 1.0 : -1.0;
+    float y = sin(x * freq + dir * time * speed + fi * 1.7)
+            + 0.3 * sin(x * freq * 2.1 - time * speed * 1.6 + fi * 0.9);
+    float rip = sin(sqrt(x * x + 0.25) * 8.0 - time * 7.0 + fi) * (0.25 + ripple) * 0.5 * beat;
+    return softLimit(amp * leadEnvelope(u) * (y / 1.3 + rip), h);
 }
 
 [[ stitchable ]] half4 ferrofluid(float2 localPos,
@@ -92,12 +121,27 @@ float ribbonHeight(float u, float k, float time, float4 bands, float beat, float
 
         float3 c = paletteAt((0.5 + 0.5 * u) * 0.7 + (0.5 + 0.5 * k) * 0.3, cols, nColors);
         float core = 1.0 - smoothstep(0.35, 1.5, d);
-        float glow = exp(-d / 4.5) * 0.10;
-        light += c * (core * 0.55 + glow) * (1.0 - 0.55 * abs(k));
+        float glow = exp(-d / 4.5) * 0.07;
+        light += c * (core * 0.42 + glow) * (1.0 - 0.55 * abs(k)) * fade;
+    }
+
+    float leadFade = smoothstep(0.02, 0.3, leadEnvelope(u));
+    if (leadFade > 0.0) {
+        for (int i = 0; i < LEADS; i++) {
+            float y0 = leadHeight(u, i, time, bands, beat, ripple, size.y);
+            float y1 = leadHeight(u + du, i, time, bands, beat, ripple, size.y);
+            float slope = y1 - y0;
+            float d = abs(pos.y - (midY + y0)) / sqrt(1.0 + slope * slope);
+            float3 c = mix(paletteAt(float(i) / float(LEADS - 1), cols, nColors), float3(1.0), 0.15);
+            float width = 0.7 + 0.4 * bands.x;
+            float core = 1.0 - smoothstep(width, width + 1.2, d);
+            float glow = exp(-d / (5.0 + 6.0 * bands.x)) * 0.22;
+            light += c * (core * 0.8 + glow) * leadFade;
+        }
     }
 
     // Filmic roll-off keeps overlaps colourful instead of blowing out to white.
-    float3 rgb = (1.0 - exp(-light * fade * 2.4));
+    float3 rgb = 1.0 - exp(-light * 2.0);
     float a = clamp(max(max(rgb.r, rgb.g), rgb.b), 0.0, 1.0);
     return half4(half3(rgb), half(a));
 }
