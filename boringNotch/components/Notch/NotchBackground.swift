@@ -120,15 +120,12 @@ struct NotchBackground<S: Shape>: View {
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
             .clipped()
-            .layerEffect(
-                ShaderLibrary.liquidGlass(
-                    .float2(geo.size),
-                    .float(Float(min(max(refractionStrength, 0), 1))),
-                    .float(Float(min(max(glassFrost, 0), 1))),
-                    .floatArray(rectFloats)
-                ),
-                maxSampleOffset: CGSize(width: 40, height: 40)
-            )
+            .modifier(FormingGlass(
+                size: geo.size,
+                strength: Float(min(max(refractionStrength, 0), 1)),
+                frost: Float(min(max(glassFrost, 0), 1)),
+                rects: rectFloats
+            ))
             // Above the frosted layer: fine strings would blur away under it.
             .overlay {
                 if showAlbumGlow {
@@ -177,6 +174,49 @@ struct NotchBackground<S: Shape>: View {
                 .fill(.ultraThinMaterial)
                 .overlay(Color.black.opacity(tint + 0.15))
         }
+    }
+}
+
+/// Applies the refraction, growing from flat glass to full strength as the
+/// notch opens, so the glass visibly forms instead of popping in.
+private struct FormingGlass: ViewModifier {
+    let size: CGSize
+    let strength: Float
+    let frost: Float
+    let rects: [Float]
+    @State private var formed = false
+
+    func body(content: Content) -> some View {
+        content
+            .modifier(GlassEffectAmount(amount: formed ? 1 : 0, size: size, strength: strength, frost: frost, rects: rects))
+            .onAppear {
+                withAnimation(.spring(duration: 0.6, bounce: 0.25)) { formed = true }
+            }
+    }
+}
+
+private struct GlassEffectAmount: ViewModifier, Animatable {
+    var amount: Double
+    let size: CGSize
+    let strength: Float
+    let frost: Float
+    let rects: [Float]
+
+    var animatableData: Double {
+        get { amount }
+        set { amount = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        content.layerEffect(
+            ShaderLibrary.liquidGlass(
+                .float2(size),
+                .float(strength * Float(amount)),
+                .float(frost * Float(min(max(amount, 0), 1))),
+                .floatArray(rects)
+            ),
+            maxSampleOffset: CGSize(width: 40, height: 40)
+        )
     }
 }
 

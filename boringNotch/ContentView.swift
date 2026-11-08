@@ -602,6 +602,10 @@ struct ContentView: View {
             // screen edge used to fire a burst of clicks.
             if vm.notchState == .closed && !wasHovering {
                 fireHaptic()
+                // Have the picture for the glass ready before the notch opens.
+                ScreenBackdrop.shared.prepare(
+                    for: NSApp.windows.first { $0 is BoringNotchSkyLightWindow && $0.isVisible }
+                )
             }
             
             guard vm.notchState == .closed,
