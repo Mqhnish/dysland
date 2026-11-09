@@ -56,7 +56,7 @@ This version was modified from Boring Notch 2.7.3 by Mohnish Singh Rawat, with c
 
 ## Credits
 
-Dysland is built on the work of the Boring Notch team and its contributors. The app icon is still the original Boring Notch icon by [@maxtron95](https://github.com/maxtron95). Boring Notch in turn credits [MediaRemoteAdapter](https://github.com/ungive/mediaremote-adapter) for Now Playing on macOS 15.4 and later, and [NotchDrop](https://github.com/Lakr233/NotchDrop) for the first version of the shelf.
+Dysland is built on the work of the Boring Notch team and its contributors. Boring Notch in turn credits [MediaRemoteAdapter](https://github.com/ungive/mediaremote-adapter) for Now Playing on macOS 15.4 and later, and [NotchDrop](https://github.com/Lakr233/NotchDrop) for the first version of the shelf.
 
 Third-party licences are in [THIRD_PARTY_LICENSES](./THIRD_PARTY_LICENSES).
 
