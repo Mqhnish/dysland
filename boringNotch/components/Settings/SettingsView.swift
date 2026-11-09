@@ -869,6 +869,7 @@ struct About: View {
                     Text("Dysland is a modified version of Boring Notch, last changed in November 2026. It is free software under the GNU General Public License v3 and comes with no warranty.")
                     Text("Copyright © 2024-2026 Boring Notch contributors. Modifications © 2026 Mohnish Singh Rawat.")
                         .foregroundStyle(.secondary)
+                    Link("Dysland source code", destination: URL(string: "https://github.com/Mqhnish/dysland")!)
                     Link("Original Boring Notch project", destination: URL(string: "https://github.com/TheBoredTeam/boring.notch")!)
                     Link("Read the GNU GPL v3", destination: URL(string: "https://www.gnu.org/licenses/gpl-3.0.html")!)
                 } header: {

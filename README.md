@@ -45,6 +45,8 @@ Recording system audio for the visualizer is off by default. Turning it on shows
 You need Xcode 26 or later.
 
 ```bash
+git clone https://github.com/Mqhnish/dysland.git
+cd dysland
 open boringNotch.xcodeproj
 ```
 
