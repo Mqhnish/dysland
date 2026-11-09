@@ -13,25 +13,82 @@ import SwiftUI
 enum NotchMotion {
     private static var speed: Double { min(max(Defaults[.notchAnimationSpeed], 0.5), 2.0) }
 
-    /// Opening: quick, with a small settle at the end.
+    /// SwiftUI's half of the motion: what moves inside the outline.
     static var open: Animation {
-        .spring(duration: 0.42 * speed, bounce: min(max(Defaults[.notchOpenBounce], 0), 0.4))
+        .spring(duration: 0.36 * speed, bounce: min(max(Defaults[.notchOpenBounce], 0), 0.4))
     }
-    /// Closing: a bit faster and with no bounce, so it tucks away cleanly.
-    static var close: Animation { .spring(duration: 0.34 * speed, bounce: 0) }
-    /// Content appears just after the shape starts growing.
-    static var contentIn: Animation { .spring(duration: 0.36 * speed, bounce: 0).delay(0.06 * speed) }
+    static var close: Animation { .spring(duration: 0.24 * speed, bounce: 0) }
+    /// SwiftUI takes about 100 ms to build the content, which already gives the
+    /// outline its head start, so nothing here waits any longer.
+    static var contentIn: Animation { .easeOut(duration: 0.2 * speed) }
     /// Content leaves fast so the shrinking shape never squeezes it.
     static var contentOut: Animation { .easeOut(duration: 0.12 * speed) }
+    /// Glass stays hidden behind black until the island has nearly arrived.
+    static var glassReveal: Animation { .easeOut(duration: 0.14 * speed).delay(0.03 * speed) }
+
+    fileprivate static var outlineSpeed: Double { speed }
 }
 
-/// Black when closed (so it blends into the hardware notch). When open:
+/// The outline's springs. Width and height move separately, which is most of
+/// what makes the island feel elastic.
+enum IslandMotion {
+    /// The farthest a side may swing past its target.
+    static let overshootLimit: CGFloat = 8
+
+    static func spring(from: CGFloat, to: CGFloat, isWidth: Bool) -> IslandSpring {
+        let speed = NotchMotion.outlineSpeed
+        let bounce = min(max(Defaults[.notchOpenBounce], 0), 0.4)
+        let base: IslandSpring
+        if to > from {
+            base = isWidth ? IslandSpring(duration: 0.36 * speed, bounce: bounce)
+                : IslandSpring(duration: 0.32 * speed, bounce: bounce * 0.88)
+        } else {
+            base = IslandSpring(duration: (isWidth ? 0.24 : 0.22) * speed, bounce: 0)
+        }
+        return base.limited(travel: abs(to - from), limit: overshootLimit)
+    }
+}
+
+/// Content coming in: slightly small and soft, then sharp.
+struct IslandArrival: ViewModifier, Animatable {
+    var progress: Double
+    var blurs: Bool
+
+    var animatableData: Double {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        let shown = min(progress / 0.6, 1)
+        content
+            .opacity(shown)
+            .scaleEffect(0.95 + 0.05 * progress, anchor: .top)
+            .blur(radius: blurs ? 6 * (1 - progress) : 0)
+    }
+}
+
+/// Black over the glass while the island opens, so empty glass never moves.
+private struct GlassShutter: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var opened = false
+
+    var body: some View {
+        Rectangle()
+            .fill(.black)
+            .opacity(opened ? 0 : 1)
+            .onAppear {
+                withAnimation(reduceMotion ? nil : NotchMotion.glassReveal) { opened = true }
+            }
+    }
+}
+
+/// Nothing when closed: the island's black is drawn by IslandSurfaceView. When open:
 /// - Tiles mode: a faint veil, with the content split into glass tiles on top
 ///   (like Control Center). Each tile edge bends what's behind it.
 /// - Panel mode: one glass panel behind everything.
 /// - Glass off: solid black.
-struct NotchBackground<S: Shape>: View {
-    let shape: S
+struct NotchBackground: View {
     let isOpen: Bool
     let useGlass: Bool
     /// Where the glass tiles are (in the "notchPanel" coordinate space),
@@ -77,23 +134,18 @@ struct NotchBackground<S: Shape>: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            if customRefraction {
-                // No fade on removal: while fading out, this view (and the
-                // visualiser inside it) could keep running indefinitely.
-                refractedBackdrop
-                    .transition(.identity)
-            } else {
-                standardLayers
+            Color.clear
+            if isOpen {
+                ZStack(alignment: .top) {
+                    if customRefraction {
+                        refractedBackdrop
+                    } else {
+                        standardLayers
+                    }
+                    if useGlass { GlassShutter() }
+                }
+                .transition(.identity)
             }
-
-            // Closed: solid black so it blends into the hardware notch.
-            Rectangle()
-                .fill(.black)
-                .opacity(isOpen ? 0 : 1)
-        }
-        .overlay {
-            // Hairline rim so the panel's outline reads over busy backgrounds.
-            shape.stroke(.white.opacity(isOpen && tilesMode ? 0.12 : 0), lineWidth: 1)
         }
         .onAppear { updateCapture(open: isOpen) }
         .onChange(of: isOpen) { _, open in updateCapture(open: open) }
@@ -110,7 +162,8 @@ struct NotchBackground<S: Shape>: View {
 
     private var rectFloats: [Float] {
         tileFrames.flatMap { f -> [Float] in
-            [Float(f.rect.minX), Float(f.rect.minY), Float(f.rect.width), Float(f.rect.height), Float(f.radius)]
+            // Tiles are measured from the panel; this view starts at the stage's edge.
+            [Float(f.rect.minX + islandStageBleed), Float(f.rect.minY), Float(f.rect.width), Float(f.rect.height), Float(f.radius)]
         }
     }
 
@@ -130,10 +183,11 @@ struct NotchBackground<S: Shape>: View {
                 rects: rectFloats
             ))
             // Above the frosted layer: fine strings would blur away under it.
-            .overlay {
+            .overlay(alignment: .top) {
                 if showAlbumGlow {
                     AlbumGlowView(active: isOpen)
                         .opacity(min(max(albumGlowIntensity, 0), 1))
+                        .frame(width: openNotchSize.width, height: openNotchSize.height)
                 }
             }
         }
@@ -156,6 +210,7 @@ struct NotchBackground<S: Shape>: View {
             if showAlbumGlow {
                 AlbumGlowView(active: isOpen)
                     .opacity(isOpen ? min(max(albumGlowIntensity, 0), 1) : 0)
+                    .frame(width: openNotchSize.width, height: openNotchSize.height)
             }
         }
     }

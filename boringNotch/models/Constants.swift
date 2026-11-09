@@ -76,7 +76,9 @@ extension Defaults.Keys {
     static let releaseName = Key<String>("releaseName", default: "Flying Rabbit 🐇🪽")
     
     // MARK: Behavior
-    static let minimumHoverDuration = Key<TimeInterval>("minimumHoverDuration", default: 0.3)
+    static let appVolumes = Key<[String: Double]>("appVolumes", default: [:])
+    static let appMutes = Key<[String: Bool]>("appMutes", default: [:])
+    static let minimumHoverDuration = Key<TimeInterval>("minimumHoverDuration", default: 0.25)
     static let enableHaptics = Key<Bool>("enableHaptics", default: true)
     static let openNotchOnHover = Key<Bool>("openNotchOnHover", default: true)
     static let extendHoverArea = Key<Bool>("extendHoverArea", default: false)
@@ -139,7 +141,7 @@ extension Defaults.Keys {
     /// Multiplier on open/close duration (lower = faster)
     static let notchAnimationSpeed = Key<Double>("notchAnimationSpeed", default: 1.0)
     /// Spring bounce when the notch opens, 0...0.4
-    static let notchOpenBounce = Key<Double>("notchOpenBounce", default: 0.14)
+    static let notchOpenBounce = Key<Double>("notchOpenBounce", default: 0.15)
     /// Double-click the mirror to pop it out into a floating window
     static let mirrorPopOutEnabled = Key<Bool>("mirrorPopOutEnabled", default: true)
     /// Width of the floating mirror window, in points

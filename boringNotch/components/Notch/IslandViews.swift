@@ -329,6 +329,28 @@ struct IslandHeaderButtons: View {
     }
 }
 
+/// Opens the per-app mixer. Sits with the right-hand header buttons because
+/// the left group has no room before the camera.
+struct IslandMixerButton: View {
+    @EnvironmentObject var vm: BoringViewModel
+    @ObservedObject private var coordinator = BoringViewCoordinator.shared
+
+    var body: some View {
+        Button {
+            coordinator.currentView = .home
+            withAnimation(.smooth(duration: 0.35)) { vm.homePanel = vm.homePanel == .mixer ? .home : .mixer }
+        } label: {
+            HeaderButtonBackground()
+                .overlay {
+                    Image(systemName: "slider.horizontal.3")
+                        .foregroundColor(.white)
+                        .imageScale(.medium)
+                }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Search
 
 struct IslandSearchResult: Identifiable {

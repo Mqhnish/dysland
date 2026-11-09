@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		AA00000000000000000000F2 /* ScreenBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000000F1 /* ScreenBackdrop.swift */; };
+		AA0000000000000000BC10F4 /* AppAudioMixer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000BC10F3 /* AppAudioMixer.swift */; };
 		AA00000000000000000000E2 /* AudioReactor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000000E1 /* AudioReactor.swift */; };
 		AA00000000000000000000D2 /* LiquidShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000000D1 /* LiquidShaders.metal */; };
 		AA00000000000000000000C2 /* AlbumGlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000000C1 /* AlbumGlowView.swift */; };
@@ -18,6 +19,8 @@
 		BB00000000000000000000B4 /* IslandCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000000000000B3 /* IslandCenter.swift */; };
 		BB00000000000000000000C2 /* SongMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000000000000000000C1 /* SongMap.swift */; };
 		AA00000000000000000000A2 /* NotchBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000000000000000000A1 /* NotchBackground.swift */; };
+		AA0000000000000000BC10F6 /* MixerPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000BC10F5 /* MixerPanelView.swift */; };
+		AA0000000000000000BC10F2 /* IslandSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000BC10F1 /* IslandSurface.swift */; };
 		1100290C2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1100290B2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift */; };
 		110029272E84FD4C00035A57 /* TemporaryFileStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110029262E84FD4C00035A57 /* TemporaryFileStorageService.swift */; };
 		1100292A2E8691B400035A57 /* FileShareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110029292E8691B400035A57 /* FileShareView.swift */; };
@@ -193,6 +196,7 @@
 
 /* Begin PBXFileReference section */
 		AA00000000000000000000F1 /* ScreenBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenBackdrop.swift; sourceTree = "<group>"; };
+		AA0000000000000000BC10F3 /* AppAudioMixer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAudioMixer.swift; sourceTree = "<group>"; };
 		AA00000000000000000000E1 /* AudioReactor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AudioReactor.swift"; sourceTree = "<group>"; };
 		AA00000000000000000000D1 /* LiquidShaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = "metal/LiquidShaders.metal"; sourceTree = "<group>"; };
 		AA00000000000000000000C1 /* AlbumGlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumGlowView.swift; sourceTree = "<group>"; };
@@ -203,6 +207,8 @@
 		BB00000000000000000000B3 /* IslandCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandCenter.swift; sourceTree = "<group>"; };
 		BB00000000000000000000C1 /* SongMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongMap.swift; sourceTree = "<group>"; };
 		AA00000000000000000000A1 /* NotchBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchBackground.swift; sourceTree = "<group>"; };
+		AA0000000000000000BC10F5 /* MixerPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixerPanelView.swift; sourceTree = "<group>"; };
+		AA0000000000000000BC10F1 /* IslandSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandSurface.swift; sourceTree = "<group>"; };
 		1100290B2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSItemProvider+LoadHelpers.swift"; sourceTree = "<group>"; };
 		110029262E84FD4C00035A57 /* TemporaryFileStorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemporaryFileStorageService.swift; sourceTree = "<group>"; };
 		110029292E8691B400035A57 /* FileShareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileShareView.swift; sourceTree = "<group>"; };
@@ -537,6 +543,7 @@
 				112FB7342CCF16F70015238C /* NotchSpaceManager.swift */,
 				147163992C5D35FF0068B555 /* MusicManager.swift */,
 				AA00000000000000000000F1 /* ScreenBackdrop.swift */,
+				AA0000000000000000BC10F3 /* AppAudioMixer.swift */,
 				AA00000000000000000000E1 /* AudioReactor.swift */,
 				BB00000000000000000000C1 /* SongMap.swift */,
 				BB00000000000000000000B3 /* IslandCenter.swift */,
@@ -736,6 +743,8 @@
 				1160F8D72DD98230006FBB94 /* NotchShape.swift */,
 				AA00000000000000000000C1 /* AlbumGlowView.swift */,
 				AA00000000000000000000A1 /* NotchBackground.swift */,
+				AA0000000000000000BC10F5 /* MixerPanelView.swift */,
+				AA0000000000000000BC10F1 /* IslandSurface.swift */,
 				BB00000000000000000000B1 /* IslandViews.swift */,
 				BB00000000000000000000A3 /* LyricsViews.swift */,
 				BB00000000000000000000A1 /* MusicLibraryView.swift */,
@@ -984,6 +993,8 @@
 				1160F8D82DD98230006FBB94 /* NotchShape.swift in Sources */,
 				AA00000000000000000000C2 /* AlbumGlowView.swift in Sources */,
 				AA00000000000000000000A2 /* NotchBackground.swift in Sources */,
+				AA0000000000000000BC10F6 /* MixerPanelView.swift in Sources */,
+				AA0000000000000000BC10F2 /* IslandSurface.swift in Sources */,
 				BB00000000000000000000C2 /* SongMap.swift in Sources */,
 				BB00000000000000000000B4 /* IslandCenter.swift in Sources */,
 				BB00000000000000000000B2 /* IslandViews.swift in Sources */,
@@ -995,6 +1006,7 @@
 				AA00000000000000000000B2 /* FullscreenMirror.swift in Sources */,
 				1471639A2C5D35FF0068B555 /* MusicManager.swift in Sources */,
 				AA00000000000000000000F2 /* ScreenBackdrop.swift in Sources */,
+				AA0000000000000000BC10F4 /* AppAudioMixer.swift in Sources */,
 				AA00000000000000000000E2 /* AudioReactor.swift in Sources */,
 				B1B112932C6A577E00093D8F /* MouseTracker.swift in Sources */,
 				B1C448962C9712C4001F0858 /* ActionBar.swift in Sources */,

@@ -14,6 +14,8 @@ class BoringViewModel: NSObject, ObservableObject {
     @ObservedObject var detector = FullscreenMediaDetector.shared
 
     let animationLibrary: BoringAnimations = .init()
+    /// Draws the outline; ContentView tells it what size to be.
+    let islandSurface = IslandSurfaceController()
     let animation: Animation?
 
     @Published var contentType: ContentType = .normal
@@ -192,6 +194,7 @@ class BoringViewModel: NSObject, ObservableObject {
     }
 
     func open() {
+        islandSurface.anticipateOpen()
         self.notchSize = openNotchSize
         self.notchState = .open
         
@@ -235,5 +238,5 @@ class BoringViewModel: NSObject, ObservableObject {
 }
 
 enum HomePanel: Equatable {
-    case home, library, lyrics, timer, search
+    case home, library, lyrics, timer, search, mixer
 }

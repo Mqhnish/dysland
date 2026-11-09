@@ -58,7 +58,7 @@ This version was modified from Boring Notch 2.7.3 by Mohnish Singh Rawat, with c
 
 ## Credits
 
-Dysland is built on the work of the Boring Notch team and its contributors. Boring Notch in turn credits [MediaRemoteAdapter](https://github.com/ungive/mediaremote-adapter) for Now Playing on macOS 15.4 and later, and [NotchDrop](https://github.com/Lakr233/NotchDrop) for the first version of the shelf.
+Dysland is built on the work of the Boring Notch team and its contributors. The way the island's outline moves, as a Core Animation mask with separate width and height springs, and the per-app mixer's process-tap approach are adapted from [Vorssaint](https://github.com/vorssaint/vorssaint-utils) (GPL-3.0-or-later). Boring Notch in turn credits [MediaRemoteAdapter](https://github.com/ungive/mediaremote-adapter) for Now Playing on macOS 15.4 and later, and [NotchDrop](https://github.com/Lakr233/NotchDrop) for the first version of the shelf.
 
 Third-party licences are in [THIRD_PARTY_LICENSES](./THIRD_PARTY_LICENSES).
 

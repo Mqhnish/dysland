@@ -29,6 +29,8 @@ struct ContentView: View {
     @State private var anyDropDebounceTask: Task<Void, Never>?
 
     @State private var gestureProgress: CGFloat = .zero
+    /// The laid-out island, before any trackpad-drag scaling.
+    @State private var islandSize: CGSize = .zero
 
     @State private var haptics: Bool = false
     @State private var lastHaptic: Date = .distantPast
@@ -43,24 +45,11 @@ struct ContentView: View {
     private let animationSpring = Animation.interactiveSpring(response: 0.38, dampingFraction: 0.8, blendDuration: 0)
 
     @Default(.glassBackground) var glassBackground
+    @Default(.glassTiles) var glassTiles
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let extendedHoverPadding: CGFloat = 30
     private let zeroHeightHoverPadding: CGFloat = 10
-
-    private var topCornerRadius: CGFloat {
-       ((vm.notchState == .open) && Defaults[.cornerRadiusScaling])
-                ? cornerRadiusInsets.opened.top
-                : cornerRadiusInsets.closed.top
-    }
-
-    private var currentNotchShape: NotchShape {
-        NotchShape(
-            topCornerRadius: topCornerRadius,
-            bottomCornerRadius: ((vm.notchState == .open) && Defaults[.cornerRadiusScaling])
-                ? cornerRadiusInsets.opened.bottom
-                : cornerRadiusInsets.closed.bottom
-        )
-    }
 
     private var computedChinWidth: CGFloat {
         var chinWidth: CGFloat = vm.closedNotchSize.width
@@ -94,6 +83,30 @@ struct ContentView: View {
             && coordinator.musicLiveActivityEnabled
     }
 
+    private var gestureScale: CGFloat {
+        guard gestureProgress != 0 else { return 1.0 }
+        return max(0.6, 1.0 + gestureProgress * 0.01)
+    }
+
+    /// Everything the Core Animation outline needs from SwiftUI.
+    private var islandRequest: IslandRequest {
+        let open = vm.notchState == .open
+        // Just after opening, the layout still reports the closed size for a pass.
+        let stale = open && islandSize.height <= vm.effectiveClosedNotchHeight + 1
+        let size = stale ? vm.islandSurface.expectedOpenSize : islandSize
+        return IslandRequest(
+            size: CGSize(width: size.width * gestureScale, height: size.height * gestureScale),
+            closedHeight: vm.effectiveClosedNotchHeight,
+            wingHeight: showSplitPill ? max(vm.effectiveClosedNotchHeight, 24) : 0,
+            chin: vm.chinHeight > 0 ? CGSize(width: computedChinWidth, height: vm.chinHeight) : .zero,
+            isOpen: open,
+            usesGlass: glassBackground,
+            hairline: open && glassBackground && glassTiles && GlassSupport.available,
+            shadow: (open || isHovering) && Defaults[.enableShadow] && !glassBackground,
+            tracksPointer: gestureProgress != 0
+        )
+    }
+
     private func openPanel(_ panel: HomePanel) {
         coordinator.currentView = .home
         vm.homePanel = panel
@@ -101,13 +114,6 @@ struct ContentView: View {
     }
 
     var body: some View {
-        // Calculate scale based on gesture progress only
-        let gestureScale: CGFloat = {
-            guard gestureProgress != 0 else { return 1.0 }
-            let scaleFactor = 1.0 + gestureProgress * 0.01
-            return max(0.6, scaleFactor)
-        }()
-        
         ZStack(alignment: .top) {
             VStack(spacing: 0) {
                 let mainLayout = NotchLayout()
@@ -121,15 +127,7 @@ struct ContentView: View {
                     )
                     .padding([.horizontal, .bottom], vm.notchState == .open ? 12 : 0)
                     .coordinateSpace(name: "notchPanel")
-                    .backgroundPreferenceValue(GlassTileFramesKey.self) { frames in
-                        NotchBackground(
-                            shape: currentNotchShape,
-                            isOpen: vm.notchState == .open,
-                            useGlass: glassBackground,
-                            tileFrames: frames
-                        )
-                    }
-                    .clipShape(currentNotchShape)
+                    .onGeometryChange(for: CGSize.self) { $0.size } action: { islandSize = $0 }
                     // A second activity splits off into its own pill beside the notch.
                     .overlay(alignment: .topTrailing) {
                         if showSplitPill, let timer = island.timer {
@@ -144,15 +142,7 @@ struct ContentView: View {
                         Rectangle()
                             .fill(.black)
                             .frame(height: 1)
-                            .padding(.horizontal, topCornerRadius)
-                    }
-                    // Shadows render off-screen, which hides the backdrop from the
-                    // glass, so skip the modifier entirely when glass is on.
-                    .conditionalModifier(!glassBackground) { view in
-                        view.shadow(
-                            color: ((vm.notchState == .open || isHovering) && Defaults[.enableShadow])
-                                ? .black.opacity(0.7) : .clear, radius: Defaults[.cornerRadiusScaling] ? 6 : 4
-                        )
+                            .padding(.horizontal, islandSize.height > vm.effectiveClosedNotchHeight + 1 ? cornerRadiusInsets.opened.top : cornerRadiusInsets.closed.top)
                     }
                     .padding(
                         .bottom,
@@ -161,8 +151,8 @@ struct ContentView: View {
                 
                 mainLayout
                     .frame(height: vm.notchState == .open ? vm.notchSize.height : nil)
-                    // One spring per direction, used everywhere the notch opens/closes,
-                    // so the shape, size and content never run on competing timings.
+                    // The outline springs in Core Animation (IslandSurface); this is
+                    // only what moves inside it, such as the album art's flight.
                     .animation(vm.notchState == .open ? NotchMotion.open : NotchMotion.close, value: vm.notchState)
                     .animation(.smooth, value: gestureProgress)
                     .contentShape(Rectangle())
@@ -239,9 +229,23 @@ struct ContentView: View {
                         .frame(width: computedChinWidth, height: vm.chinHeight)
                 }
             }
+            .frame(maxWidth: openNotchSize.width)
         }
         .padding(.bottom, 8)
         .frame(maxWidth: windowSize.width, maxHeight: windowSize.height, alignment: .top)
+        // Fixed to the whole stage, so it never resizes during an animation.
+        .backgroundPreferenceValue(GlassTileFramesKey.self) { frames in
+            NotchBackground(
+                isOpen: vm.notchState == .open,
+                useGlass: glassBackground,
+                tileFrames: frames
+            )
+            .allowsHitTesting(false)
+        }
+        .onChange(of: islandRequest, initial: true) { _, request in
+            guard request.size != .zero else { return }
+            vm.islandSurface.present(request)
+        }
         // compositingGroup flattens everything into an off-screen layer, so glass
         // inside it can't see the desktop. Only use it for the solid black look.
         .conditionalModifier(!glassBackground) { $0.compositingGroup() }
@@ -280,6 +284,18 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    /// Apple's glass can't be blurred without going flat for the whole reveal,
+    /// so tiles drawn with it only scale and fade.
+    private var contentArrival: AnyTransition {
+        let backdrop = ScreenBackdrop.shared
+        let blurs = !(glassBackground && glassTiles && GlassSupport.available
+            && !(Defaults[.realRefraction] && backdrop.hasFrame))
+        return AnyTransition.modifier(
+            active: IslandArrival(progress: 0, blurs: blurs),
+            identity: IslandArrival(progress: 1, blurs: blurs)
+        ).animation(NotchMotion.contentIn)
     }
 
     @ViewBuilder
@@ -397,13 +413,10 @@ struct ContentView: View {
                         ShelfView()
                     }
                 }
-                // Shape leads, content follows: fade/scale in slightly after the
-                // notch starts growing, and get out of the way quickly on close.
+                // Shape leads, content follows, and gets out of the way quickly on close.
                 .transition(
                     .asymmetric(
-                        insertion: .scale(scale: 0.96, anchor: .top)
-                            .combined(with: .opacity)
-                            .animation(NotchMotion.contentIn),
+                        insertion: reduceMotion ? .opacity : contentArrival,
                         removal: .opacity.animation(NotchMotion.contentOut)
                     )
                 )

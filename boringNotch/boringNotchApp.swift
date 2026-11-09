@@ -259,10 +259,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window.disableSkyLight()
         }
 
-        window.contentView = NSHostingView(
+        let host = NSHostingView(
             rootView: ContentView()
                 .environmentObject(viewModel)
         )
+        host.sizingOptions = []
+        window.contentView = viewModel.islandSurface.makeView(content: host, size: windowSize)
 
         window.orderFrontRegardless()
         // The private max-level space keeps the notch above everything, but it's
@@ -302,6 +304,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         IslandCenter.shared.start()
+        AppAudioMixer.shared.start()
 
         glassSpaceObserver = Defaults.publisher(.glassBackground, options: [])
             .receive(on: DispatchQueue.main)
