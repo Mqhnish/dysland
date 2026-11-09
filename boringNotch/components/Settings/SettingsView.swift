@@ -1158,6 +1158,7 @@ struct Appearance: View {
     @Default(.glowCalendarColors) var glowCalendarColors
     @Default(.visualizerSpikiness) var visualizerSpikiness
     @Default(.realAudioReaction) var realAudioReaction
+    @Default(.songPreviewAnalysis) var songPreviewAnalysis
     @Default(.realRefraction) var realRefraction
     @Default(.refractionStrength) var refractionStrength
     @Default(.glassFrost) var glassFrost
@@ -1476,6 +1477,16 @@ struct Appearance: View {
                 .disabled(!albumGlow)
                 Toggle("Record system audio to react (shows purple indicator)", isOn: $realAudioReaction)
                     .disabled(!albumGlow)
+                VStack(alignment: .leading, spacing: 2) {
+                    Toggle("Follow Apple Music songs using previews", isOn: $songPreviewAnalysis)
+                        .disabled(!albumGlow)
+                        .onChange(of: songPreviewAnalysis) {
+                            SongFollower.shared.previewSettingChanged()
+                        }
+                    Text("Downloads each song's 30-second Apple preview and analyzes it on this Mac. Off by default because Apple's terms limit how previews can be used.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Toggle("Real refraction (needs Screen Recording)", isOn: $realRefraction)
                     .disabled(!glassBackground)
                 LabeledContent("Refraction strength") {

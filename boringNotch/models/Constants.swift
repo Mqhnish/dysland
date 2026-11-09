@@ -115,6 +115,9 @@ extension Defaults.Keys {
     static let visualizerSpikiness = Key<Double>("visualizerRipple", default: 0.5)
     /// React to the real system audio (needs System Audio Recording permission)
     static let realAudioReaction = Key<Bool>("realAudioReactionV2", default: false)
+    /// Follow Apple Music songs by downloading and analysing their previews.
+    /// Off by default: Apple's Search API terms restrict how previews can be used.
+    static let songPreviewAnalysis = Key<Bool>("songPreviewAnalysis", default: false)
     /// Custom glass that refracts what's behind the notch (needs Screen Recording permission)
     static let realRefraction = Key<Bool>("realRefraction", default: true)
     /// How strongly the custom glass bends the background, 0...1

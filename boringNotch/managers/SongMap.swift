@@ -15,9 +15,13 @@
 //  - Song structure also comes from the lyrics: repeated lines are the chorus,
 //    long gaps are instrumental breaks, and before the first line is the intro.
 //
+//  Off by default (see Defaults.Keys.songPreviewAnalysis). Without it, the
+//  visualiser uses the same simulated motion as other media.
+//
 
 import Accelerate
 import AVFoundation
+import Defaults
 import Foundation
 import OSLog
 
@@ -340,6 +344,7 @@ final class SongFollower: @unchecked Sendable {
     private var cache: [String: SongProfile] = [:]
     private var currentKey = ""
     private var lines: [(time: Double, text: String)] = []
+    private var lastSong: (title: String?, artist: String) = (nil, "")
 
     /// Very fast readings pulse on every other beat: still in time, and slow
     /// songs that get read at double speed don't look frantic.
@@ -349,7 +354,8 @@ final class SongFollower: @unchecked Sendable {
 
     /// Call when the song changes. Pass nil when it isn't an Apple Music song.
     func songChanged(title: String?, artist: String) {
-        guard let title, !title.isEmpty else {
+        lock.withLock { lastSong = (title, artist) }
+        guard Defaults[.songPreviewAnalysis], let title, !title.isEmpty else {
             lock.withLock { map = nil; currentKey = "" }
             return
         }
@@ -365,6 +371,15 @@ final class SongFollower: @unchecked Sendable {
             guard let profile = await SongAnalysis.profile(title: title, artist: artist) else { return }
             self?.install(profile, key: key)
         }
+    }
+
+    /// Call when the preview setting is switched, so it applies to the current song.
+    func previewSettingChanged() {
+        let song = lock.withLock {
+            currentKey = ""
+            return lastSong
+        }
+        songChanged(title: song.title, artist: song.artist)
     }
 
     /// Call when the synced lyrics for the current song arrive or change.

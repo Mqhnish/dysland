@@ -8,7 +8,7 @@ It is a modified version of [Boring Notch](https://github.com/TheBoredTeam/borin
 
 - Music controls, with your Apple Music playlists and songs available inside the player
 - Synced lyrics, from the closed notch to a full lyrics panel
-- A visualizer that follows Apple Music songs without recording your system audio
+- A visualizer that reacts to your music without recording your system audio
 - Liquid Glass styling that refracts what's behind the notch
 - Volume and brightness HUDs that name your output device, such as AirPods or MacBook Pro speakers
 - A switcher for choosing which app's media the island controls
@@ -38,7 +38,7 @@ Recording system audio for the visualizer is off by default. Turning it on shows
 ## Online services
 
 - [LRCLIB](https://lrclib.net) supplies lyrics. The song title and artist are sent with each lookup.
-- The iTunes Search API supplies a 30-second preview of the Apple Music song you're playing. The preview is analysed on your Mac to drive the visualizer.
+- The iTunes Search API is used only if you turn on "Follow Apple Music songs using previews" in Settings. Dysland then downloads a 30-second preview of each Apple Music song and analyses it on your Mac to drive the visualizer. This is off by default because [Apple's terms](https://performance-partners.apple.com/search-api) restrict how previews can be used, so check them before turning it on.
 
 ## Build from source
 
