@@ -46,8 +46,8 @@ final class MusicLibrary: ObservableObject {
         Task {
             let script = """
             tell application "Music"
-                set ps to (every user playlist whose special kind is none)
-                return {persistent ID of ps, name of ps}
+                -- Ask through the reference: Music can't read these from a list held in a variable.
+                return {persistent ID of (every user playlist whose special kind is none), name of (every user playlist whose special kind is none)}
             end tell
             """
             do {
@@ -78,8 +78,7 @@ final class MusicLibrary: ObservableObject {
                 set n to count of tracks of p
                 if n is 0 then return {{}, {}, {}, {}}
                 if n > \(trackLimit) then set n to \(trackLimit)
-                set ts to tracks 1 thru n of p
-                return {persistent ID of ts, name of ts, artist of ts, duration of ts}
+                return {persistent ID of (tracks 1 thru n of p), name of (tracks 1 thru n of p), artist of (tracks 1 thru n of p), duration of (tracks 1 thru n of p)}
             end tell
             """
             let result = try? await AppleScriptHelper.execute(script)
