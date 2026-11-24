@@ -208,20 +208,16 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
 
         do {
             try process.run()
+            // Holds the controller only while handling a line. Awaiting a
+            // method on it kept it alive as long as the stream ran, so a
+            // replaced controller never shut its helper process down.
             streamTask = Task { [weak self] in
-                await self?.processJSONStream()
+                await pipeHandler.readJSONLines(as: NowPlayingUpdate.self) { [weak self] update in
+                    await self?.handleAdapterUpdate(update)
+                }
             }
         } catch {
             assertionFailure("Failed to launch mediaremote-adapter.pl: \(error)")
-        }
-    }
-
-    // MARK: - Async Stream Processing
-    private func processJSONStream() async {
-        guard let pipeHandler = self.pipeHandler else { return }
-        
-        await pipeHandler.readJSONLines(as: NowPlayingUpdate.self) { [weak self] update in
-            await self?.handleAdapterUpdate(update)
         }
     }
 

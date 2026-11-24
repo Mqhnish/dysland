@@ -94,9 +94,17 @@ class AudioSpectrum: NSView {
         }
     }
     
+    /// The timer would outlive the view otherwise: it only holds the view weakly.
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil { stopAnimating() } else if isPlaying { startAnimating() }
+    }
+
+    deinit { animationTimer?.invalidate() }
+
     func setPlaying(_ playing: Bool) {
         isPlaying = playing
-        if isPlaying {
+        if isPlaying, window != nil {
             startAnimating()
         } else {
             stopAnimating()
