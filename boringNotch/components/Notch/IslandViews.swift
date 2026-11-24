@@ -99,21 +99,38 @@ struct TimerLiveActivity: View {
     var body: some View {
         if let timer = island.timer {
             TimelineView(.periodic(from: .now, by: 0.5)) { ctx in
+                let text = IslandTimer.format(timer.display(at: ctx.date))
+                // Both sides match the digits' width, so the black middle stays
+                // centred on the camera when the time gains an hours field.
+                let side = Self.sideWidth(for: text)
                 HStack(spacing: 0) {
                     TimerRing(timer: timer, date: ctx.date)
                         .frame(width: max(notchHeight - 14, 14), height: max(notchHeight - 14, 14))
-                        .frame(width: 44, alignment: .center)
+                        .frame(width: side, alignment: .center)
                     Rectangle().fill(.black).frame(width: notchWidth - 10)
-                    Text(IslandTimer.format(timer.display(at: ctx.date)))
+                    Text(text)
                         .font(.system(size: 13, weight: .semibold).monospacedDigit())
                         .foregroundStyle(timer.isRunning ? .orange : .orange.opacity(0.5))
                         .contentTransition(.numericText(countsDown: timer.kind == .countdown))
-                        .frame(width: 56, alignment: .trailing)
+                        .lineLimit(1)
+                        .fixedSize()
+                        .frame(width: side - 6, alignment: .trailing)
                         .padding(.trailing, 6)
                 }
                 .frame(height: notchHeight)
+                .animation(.smooth(duration: 0.3), value: side)
             }
         }
+    }
+}
+
+extension TimerLiveActivity {
+    private static let digitFont = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
+
+    /// The width of each side of the closed island for this reading.
+    static func sideWidth(for text: String) -> CGFloat {
+        let width = (text as NSString).size(withAttributes: [.font: digitFont]).width
+        return max(44, ceil(width) + 16)
     }
 }
 
@@ -179,6 +196,10 @@ struct TimerPanelView: View {
                     Text("Timer")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.9))
+                    Spacer(minLength: 0)
+                    // Clock's own timers can't be read by other apps, so this
+                    // just opens it.
+                    PillButton(icon: "clock", title: "Open Clock", tint: .orange) { Self.openClock() }
                 }
                 if let timer = island.timer {
                     running(timer)
@@ -190,6 +211,11 @@ struct TimerPanelView: View {
             .glassTile(cornerRadius: 18, padding: 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    static func openClock() {
+        let clock = URL(fileURLWithPath: "/System/Applications/Clock.app")
+        NSWorkspace.shared.openApplication(at: clock, configuration: NSWorkspace.OpenConfiguration())
     }
 
     private var idle: some View {
